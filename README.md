@@ -43,7 +43,7 @@ OCI config.json / LinuxSeccomp
 | Capability | What it does |
 | :--- | :--- |
 | OCI input | Accepts full runtime config at `linux.seccomp` or a standalone seccomp profile |
-| Policy lint | Flags allow-by-default profiles, empty kill-by-default profiles, repeated architecture/syscall declarations, wildcard names, invalid argument indexes and incompatible `errnoRet` use |
+| Policy lint | Flags allow/log-by-default profiles, empty kill-by-default profiles, repeated architecture/syscall declarations, wildcard names, invalid argument indexes and incompatible `errnoRet` use |
 | Argument probe | Evaluates EQ, NE, LT, LE, GT, GE and MASKED_EQ against six supplied unsigned 64-bit argument values; refuses conflicting matches |
 | Structural diff | Shows added, removed and changed named rules plus default action/errno, architecture and flag drift between two profiles |
 | Pipeline output | Text, deterministic JSON and SARIF 2.1.0 with stable `RSL` rule identifiers |

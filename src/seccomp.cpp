@@ -227,6 +227,12 @@ std::vector<Finding> lint(const Profile& profile) {
     if (profile.default_action == "SCMP_ACT_ALLOW")
         add("RSL001", "warning", "$.linux.seccomp.defaultAction",
             "Unlisted syscalls are allowed. Confirm that a deny-by-default policy is not required for this workload.");
+    if (profile.default_action == "SCMP_ACT_LOG")
+        add("RSL020", "warning", "$.linux.seccomp.defaultAction",
+            "SCMP_ACT_LOG records and allows unlisted syscalls; it is not a deny-by-default action.");
+    if (profile.default_action == "SCMP_ACT_NOTIFY" && !profile.has_listener_path)
+        add("RSL008", "note", "$.linux.seccomp.defaultAction",
+            "SCMP_ACT_NOTIFY is the default action; confirm the runtime or external handler can receive notifications.");
     if (profile.default_errno_ret && profile.default_action != "SCMP_ACT_ERRNO" && profile.default_action != "SCMP_ACT_TRACE")
         add("RSL015", "error", "$.linux.seccomp.defaultErrnoRet",
             "defaultErrnoRet is supported only with SCMP_ACT_ERRNO or SCMP_ACT_TRACE.");
@@ -312,11 +318,16 @@ std::vector<Finding> lint(const Profile& profile) {
 
 ProbeResult probe(const Profile& profile, const std::string& syscall,
                   const std::array<std::uint64_t, 6>& args) {
+    const auto validation = lint(profile);
+    if (std::any_of(validation.begin(), validation.end(), [](const Finding& finding) { return finding.level == "error"; }))
+        throw std::runtime_error("profile has validation errors; run lint before probing it");
     std::vector<const Rule*> matched;
     for (const Rule& rule : profile.syscalls) {
         if (std::find(rule.names.begin(), rule.names.end(), syscall) == rule.names.end()) continue;
+        for (const Argument& arg : rule.args) {
+            if (arg.index >= args.size()) throw std::runtime_error("probe cannot evaluate an argument index outside 0 through 5");
+        }
         const bool all = std::all_of(rule.args.begin(), rule.args.end(), [&args](const Argument& arg) {
-            if (arg.index >= args.size()) return false;
             return arg_matches(arg, args);
         });
         if (all) matched.push_back(&rule);

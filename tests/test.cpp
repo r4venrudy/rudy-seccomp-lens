@@ -60,6 +60,8 @@ void test_profile_and_lint() {
     const auto bad_index_findings = rudy::seccomp::lint(bad_index);
     expect(std::any_of(bad_index_findings.begin(), bad_index_findings.end(),
         [](const auto& f) { return f.rule_id == "RSL011"; }), "invalid syscall argument index is reported");
+    expect_throw([&] { (void)rudy::seccomp::probe(bad_index, "read", {}); },
+                 "probe refuses profiles with invalid argument indexes");
     const auto bad_errno = parse(R"({"defaultAction":"SCMP_ACT_ALLOW","defaultErrnoRet":13,"listenerMetadata":"opaque"})");
     const auto bad_errno_findings = rudy::seccomp::lint(bad_errno);
     expect(std::any_of(bad_errno_findings.begin(), bad_errno_findings.end(),

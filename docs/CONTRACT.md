@@ -2,7 +2,7 @@
 
 Rudy Seccomp Lens accepts either an OCI runtime configuration with a `linux.seccomp` object or a standalone `LinuxSeccomp` object with `defaultAction`. It reads one UTF-8 JSON document, rejects duplicate object keys, limits files to 8 MiB, limits nesting to 64 levels, and caps JSON arrays/objects at 200,000 entries.
 
-`lint` checks the supported OCI seccomp fields for malformed types and reports review leads such as allow-by-default policy, empty kill-by-default profiles, repeated architecture/syscall entries, invalid argument indexes, unsupported wildcard names, and `errnoRet` used with an incompatible action. It does not resolve syscall names against a host syscall table.
+`lint` checks the supported OCI seccomp fields for malformed types and reports review leads such as allow/log-by-default policy, empty kill-by-default profiles, repeated architecture/syscall entries, invalid argument indexes, unsupported wildcard names, and `errnoRet` used with an incompatible action. It does not resolve syscall names against a host syscall table.
 
 `probe` evaluates the profile's named rules for one syscall and six explicit unsigned 64-bit argument values. Every argument predicate in a rule must match. If multiple matching rules disagree on action or errno, it stops with an ambiguity error instead of guessing. The result is a symbolic policy calculation, not proof of the filter a runtime or kernel will install.
 
