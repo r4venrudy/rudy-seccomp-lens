@@ -28,7 +28,7 @@ jobs:
       - name: Create Windows archive
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path stage\\* -DestinationPath "rudy-seccomp-lens-${{ github.ref_name }}-windows-x64.zip"
+        run: Compress-Archive -Path stage\* -DestinationPath "rudy-seccomp-lens-${{ github.ref_name }}-windows-x64.zip"
       - name: Create Unix archive
         if: runner.os != 'Windows'
         run: tar -czf "rudy-seccomp-lens-${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}.tar.gz" -C stage .
