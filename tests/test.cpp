@@ -80,7 +80,7 @@ void test_probe() {
     expect(denied.action == "SCMP_ACT_ERRNO" && denied.errno_ret == 1U, "non-matching rule falls back to default action");
     args[1] = 0x120U;
     expect(rudy::seccomp::probe(profile, "ioctl", args).action == "SCMP_ACT_ALLOW", "masked-equal comparator uses mask and target");
-    args[1] = 0x121U;
+    args[1] = 0x130U;
     expect(rudy::seccomp::probe(profile, "ioctl", args).action == "SCMP_ACT_ERRNO", "masked-equal comparator rejects a different value");
 
     const auto ambiguous = parse(R"({"defaultAction":"SCMP_ACT_ERRNO","syscalls":[{"names":["read"],"action":"SCMP_ACT_ALLOW"},{"names":["read"],"action":"SCMP_ACT_TRAP"}]})");
