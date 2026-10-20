@@ -1,0 +1,17 @@
+{
+  "ociVersion": "1.1.0",
+  "linux": {
+    "seccomp": {
+      "defaultAction": "SCMP_ACT_ERRNO",
+      "defaultErrnoRet": 13,
+      "architectures": ["SCMP_ARCH_X86_64"],
+      "syscalls": [
+        { "names": ["read", "write", "close", "futex", "exit", "exit_group", "rt_sigreturn"], "action": "SCMP_ACT_ALLOW" },
+        { "names": ["openat"], "action": "SCMP_ACT_ALLOW", "args": [
+          { "index": 2, "op": "SCMP_CMP_EQ", "value": 0 }
+        ]},
+        { "names": ["ptrace", "mount", "umount2", "bpf", "kexec_load"], "action": "SCMP_ACT_ERRNO", "errnoRet": 1 }
+      ]
+    }
+  }
+}

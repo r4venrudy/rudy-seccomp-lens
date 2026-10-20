@@ -1,0 +1,7 @@
+/build*/
+/stage/
+/rudy-seccomp-lens-*.zip
+/rudy-seccomp-lens-*.tar.gz
+*.user
+*.suo
+/.vs/

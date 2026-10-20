@@ -1,0 +1,12 @@
+{
+  "ociVersion": "1.1.0",
+  "linux": {
+    "seccomp": {
+      "defaultAction": "SCMP_ACT_ALLOW",
+      "architectures": ["SCMP_ARCH_X86_64"],
+      "syscalls": [
+        { "names": ["ptrace", "mount", "umount2", "bpf", "kexec_load"], "action": "SCMP_ACT_ERRNO", "errnoRet": 1 }
+      ]
+    }
+  }
+}
