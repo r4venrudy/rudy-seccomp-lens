@@ -1,0 +1,35 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / C++20
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Configure sanitizer build
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DRSL_ENABLE_SANITIZERS=ON
+      - name: Build sanitizer tests
+        if: runner.os == 'Linux'
+        run: cmake --build build-sanitized --parallel 2
+      - name: Test with sanitizers
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build-sanitized --output-on-failure

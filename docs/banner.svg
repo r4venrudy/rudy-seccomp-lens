@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">RUDY Seccomp Lens</title>
+  <desc id="desc">Read the policy before the workload. Offline OCI seccomp profile review.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111d27"/>
+      <stop offset="1" stop-color="#080d13"/>
+    </linearGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="#203443" stroke-width="1" opacity=".48"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="360" rx="22" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="22" fill="url(#grid)"/>
+  <rect x="0" y="0" width="8" height="360" rx="4" fill="#55e0b6"/>
+  <text x="62" y="78" fill="#55e0b6" font-family="Consolas,monospace" font-size="17" letter-spacing="4">RUDY SYSTEMS  /  CONTAINER SECURITY</text>
+  <text x="62" y="163" fill="#f2f7fb" font-family="Segoe UI,Arial,sans-serif" font-size="66" font-weight="700">Seccomp Lens</text>
+  <text x="64" y="211" fill="#a9c1d2" font-family="Segoe UI,Arial,sans-serif" font-size="27">Read the policy before the workload.</text>
+  <text x="64" y="300" fill="#55e0b6" font-family="Consolas,monospace" font-size="17" letter-spacing="2">C++20  /  OCI PROFILES  /  OFFLINE ANALYSIS</text>
+  <g transform="translate(830 57)" fill="none" stroke="#55e0b6" stroke-width="3">
+    <path d="M168 18h170a16 16 0 0 1 16 16v43a16 16 0 0 1-16 16H168a16 16 0 0 1-16-16V34a16 16 0 0 1 16-16z" opacity=".72"/>
+    <path d="M168 124h170a16 16 0 0 1 16 16v43a16 16 0 0 1-16 16H168a16 16 0 0 1-16-16v-43a16 16 0 0 1 16-16z" opacity=".72"/>
+    <path d="M168 230h170a16 16 0 0 1 16 16v25a16 16 0 0 1-16 16H168a16 16 0 0 1-16-16v-25a16 16 0 0 1 16-16z" opacity=".72"/>
+    <path d="M253 78v44m0 61v47" stroke-width="2"/>
+    <path d="m245 113 8 9 8-9m-16 79 8 9 8-9" stroke-width="2"/>
+  </g>
+  <g fill="#55e0b6" font-family="Consolas,monospace" font-size="15" text-anchor="middle" letter-spacing="1">
+    <text x="1083" y="68">OCI PROFILE</text>
+    <text x="1083" y="175">POLICY PROBE</text>
+    <text x="1083" y="267">REVIEW OUTPUT</text>
+  </g>
+  <text x="1240" y="330" fill="#8198aa" font-family="Consolas,monospace" font-size="13" text-anchor="end">DEVELOPER PREVIEW / v0.1.0</text>
+</svg>
