@@ -24,8 +24,7 @@ Usage:
 
 All commands are offline. Probe arguments are unsigned 64-bit integers in decimal or 0x hex.
 Exit codes: 0 clean/below threshold; 1 lint threshold reached; 2 input/usage error; 3 ambiguous probe.
-)
-";
+ )";
 }
 
 std::string read_file(const std::string& path) {

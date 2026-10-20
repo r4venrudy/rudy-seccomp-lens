@@ -25,16 +25,16 @@ const json::Value* optional(const Object& object, const std::string& key) {
     return it == object.end() ? nullptr : &it->second;
 }
 
-const Object& as_object(const json::Value& value, const std::string& at) {
+const Object* as_object(const json::Value& value, const std::string& at) {
     const Object* result = value.object();
     if (!result) throw std::runtime_error(at + " must be an object");
-    return *result;
+    return result;
 }
 
-const Array& as_array(const json::Value& value, const std::string& at) {
+const Array* as_array(const json::Value& value, const std::string& at) {
     const Array* result = value.array();
     if (!result) throw std::runtime_error(at + " must be an array");
-    return *result;
+    return result;
 }
 
 std::string as_string(const json::Value& value, const std::string& at) {
@@ -63,18 +63,12 @@ std::vector<std::string> string_array(const Object& object, const std::string& k
         if (required_field) throw std::runtime_error(at + "." + key + " is required");
         return {};
     }
-    const auto& array = as_array(*value, at + "." + key);
+    const auto* array = as_array(*value, at + "." + key);
     std::vector<std::string> result;
-    result.reserve(array.size());
-    for (std::size_t i = 0; i < array.size(); ++i)
-        result.push_back(as_string(array[i], at + "." + key + "[" + std::to_string(i) + "]"));
+    result.reserve(array->size());
+    for (std::size_t i = 0; i < array->size(); ++i)
+        result.push_back(as_string((*array)[i], at + "." + key + "[" + std::to_string(i) + "]"));
     return result;
-}
-
-std::uint32_t uint32_field(const Object& object, const std::string& key, const std::string& at) {
-    const std::uint64_t value = as_uint(required(object, key, at), at + "." + key);
-    if (value > UINT32_MAX) throw std::runtime_error(at + "." + key + " exceeds uint32");
-    return static_cast<std::uint32_t>(value);
 }
 
 std::string field(const Object& object, const std::string& key, const std::string& at) {
@@ -155,66 +149,66 @@ bool is_allowed_operator(const std::string& op) {
 }
 
 Profile parse_profile(const json::Value& root) {
-    const Object& root_object = as_object(root, "$" );
+    const Object* root_object = as_object(root, "$");
     const json::Value* seccomp_value = nullptr;
-    if (const auto* linux_value = optional(root_object, "linux")) {
-        const Object& linux_object = as_object(*linux_value, "$.linux");
-        seccomp_value = optional(linux_object, "seccomp");
+    if (const auto* linux_value = optional(*root_object, "linux")) {
+        const Object* linux_object = as_object(*linux_value, "$.linux");
+        seccomp_value = optional(*linux_object, "seccomp");
     }
-    if (!seccomp_value && optional(root_object, "defaultAction")) seccomp_value = &root;
+    if (!seccomp_value && optional(*root_object, "defaultAction")) seccomp_value = &root;
     if (!seccomp_value) throw std::runtime_error("expected an OCI config with $.linux.seccomp or a LinuxSeccomp object");
 
-    const Object& object = as_object(*seccomp_value, "$.linux.seccomp");
+    const Object* object = as_object(*seccomp_value, "$.linux.seccomp");
     Profile result;
-    result.default_action = field(object, "defaultAction", "$.linux.seccomp");
+    result.default_action = field(*object, "defaultAction", "$.linux.seccomp");
     if (!action_is_known(result.default_action)) throw std::runtime_error("unsupported defaultAction: " + result.default_action);
-    if (const auto* value = optional(object, "defaultErrnoRet")) {
+    if (const auto* value = optional(*object, "defaultErrnoRet")) {
         const std::uint64_t parsed = as_uint(*value, "$.linux.seccomp.defaultErrnoRet");
         if (parsed > UINT32_MAX) throw std::runtime_error("$.linux.seccomp.defaultErrnoRet exceeds uint32");
         result.default_errno_ret = static_cast<std::uint32_t>(parsed);
     }
-    result.architectures = string_array(object, "architectures", "$.linux.seccomp");
-    result.flags = string_array(object, "flags", "$.linux.seccomp");
-    if (const auto* listener = optional(object, "listenerPath")) {
+    result.architectures = string_array(*object, "architectures", "$.linux.seccomp");
+    result.flags = string_array(*object, "flags", "$.linux.seccomp");
+    if (const auto* listener = optional(*object, "listenerPath")) {
         const std::string path = as_string(*listener, "$.linux.seccomp.listenerPath");
         if (path.empty()) throw std::runtime_error("$.linux.seccomp.listenerPath cannot be empty");
         result.has_listener_path = true;
     }
-    if (const auto* metadata = optional(object, "listenerMetadata")) {
+    if (const auto* metadata = optional(*object, "listenerMetadata")) {
         (void)as_string(*metadata, "$.linux.seccomp.listenerMetadata");
         result.has_listener_metadata = true;
     }
 
-    if (const auto* syscalls_value = optional(object, "syscalls")) {
-        const auto& syscalls = as_array(*syscalls_value, "$.linux.seccomp.syscalls");
-        if (syscalls.size() > 100000U) throw std::runtime_error("syscall rule limit exceeded");
-        result.syscalls.reserve(syscalls.size());
-        for (std::size_t i = 0; i < syscalls.size(); ++i) {
+    if (const auto* syscalls_value = optional(*object, "syscalls")) {
+        const auto* syscalls = as_array(*syscalls_value, "$.linux.seccomp.syscalls");
+        if (syscalls->size() > 100000U) throw std::runtime_error("syscall rule limit exceeded");
+        result.syscalls.reserve(syscalls->size());
+        for (std::size_t i = 0; i < syscalls->size(); ++i) {
             const std::string at = "$.linux.seccomp.syscalls[" + std::to_string(i) + "]";
-            const Object& entry = as_object(syscalls[i], at);
+            const Object* entry = as_object((*syscalls)[i], at);
             Rule rule;
-            rule.names = string_array(entry, "names", at, true);
-            rule.action = field(entry, "action", at);
+            rule.names = string_array(*entry, "names", at, true);
+            rule.action = field(*entry, "action", at);
             if (!action_is_known(rule.action)) throw std::runtime_error(at + ".action is unsupported: " + rule.action);
-            if (const auto* errno_value = optional(entry, "errnoRet")) {
+            if (const auto* errno_value = optional(*entry, "errnoRet")) {
                 const std::uint64_t parsed = as_uint(*errno_value, at + ".errnoRet");
                 if (parsed > UINT32_MAX) throw std::runtime_error(at + ".errnoRet exceeds uint32");
                 rule.errno_ret = static_cast<std::uint32_t>(parsed);
             }
-            if (const auto* args_value = optional(entry, "args")) {
-                const auto& args = as_array(*args_value, at + ".args");
-                rule.args.reserve(args.size());
-                for (std::size_t j = 0; j < args.size(); ++j) {
+            if (const auto* args_value = optional(*entry, "args")) {
+                const auto* args = as_array(*args_value, at + ".args");
+                rule.args.reserve(args->size());
+                for (std::size_t j = 0; j < args->size(); ++j) {
                     const std::string arg_at = at + ".args[" + std::to_string(j) + "]";
-                    const Object& arg_object = as_object(args[j], arg_at);
+                    const Object* arg_object = as_object((*args)[j], arg_at);
                     Argument arg;
-                    const std::uint64_t index = as_uint(required(arg_object, "index", arg_at), arg_at + ".index");
+                    const std::uint64_t index = as_uint(required(*arg_object, "index", arg_at), arg_at + ".index");
                     if (index > UINT32_MAX) throw std::runtime_error(arg_at + ".index exceeds uint32");
                     arg.index = static_cast<std::uint32_t>(index);
-                    arg.value = as_uint(required(arg_object, "value", arg_at), arg_at + ".value");
-                    arg.value_two = optional(arg_object, "valueTwo")
-                        ? as_uint(*optional(arg_object, "valueTwo"), arg_at + ".valueTwo") : 0U;
-                    arg.op = field(arg_object, "op", arg_at);
+                    arg.value = as_uint(required(*arg_object, "value", arg_at), arg_at + ".value");
+                    arg.value_two = optional(*arg_object, "valueTwo")
+                        ? as_uint(*optional(*arg_object, "valueTwo"), arg_at + ".valueTwo") : 0U;
+                    arg.op = field(*arg_object, "op", arg_at);
                     if (!is_allowed_operator(arg.op)) throw std::runtime_error(arg_at + ".op is unsupported: " + arg.op);
                     rule.args.push_back(std::move(arg));
                 }

@@ -227,7 +227,8 @@ Value parse(const std::string& input, std::size_t max_bytes, std::size_t max_dep
 std::string quote(const std::string& value) {
     std::string out = "\"";
     static constexpr char hex[] = "0123456789abcdef";
-    for (const unsigned char c : value) {
+    for (const char raw : value) {
+        const auto c = static_cast<unsigned char>(raw);
         switch (c) {
         case '"': out += "\\\""; break;
         case '\\': out += "\\\\"; break;
