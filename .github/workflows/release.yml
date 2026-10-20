@@ -37,7 +37,7 @@ jobs:
       - name: Create Windows archive
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path stage\\* -DestinationPath "rudy-seccomp-lens-$($env:RELEASE_TAG)-windows-x64.zip"
+        run: Compress-Archive -Path stage\* -DestinationPath "rudy-seccomp-lens-$($env:RELEASE_TAG)-windows-x64.zip"
       - name: Create Unix archive
         if: runner.os != 'Windows'
         run: tar -czf "rudy-seccomp-lens-${RELEASE_TAG}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" -C stage .
