@@ -25,7 +25,6 @@ endif()
 
 if(RSL_ENABLE_SANITIZERS AND NOT MSVC)
     target_compile_options(seccomp_lens_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(seccomp_lens_core PRIVATE -fsanitize=address,undefined)
     target_compile_options(seccomp-lens PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
     target_link_options(seccomp-lens PRIVATE -fsanitize=address,undefined)
 endif()

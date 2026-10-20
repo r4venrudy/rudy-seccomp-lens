@@ -86,6 +86,7 @@ seccomp-lens diff --format json examples/deny-by-default.json examples/allow-by-
 
 Arguments use decimal or `0x` hexadecimal unsigned integers. The probe applies
 every predicate in a matching rule; if no rule matches, it reports `defaultAction`.
+For `SCMP_ACT_ERRNO` and `SCMP_ACT_TRACE`, an omitted errno is reported as EPERM.
 If multiple matching rules disagree on action or errno, the command exits with an
 ambiguity error instead of selecting one.
 
