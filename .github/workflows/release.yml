@@ -25,7 +25,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2022, macos-15]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
@@ -41,7 +41,7 @@ jobs:
       - name: Create Unix archive
         if: runner.os != 'Windows'
         run: tar -czf "rudy-seccomp-lens-${RELEASE_TAG}-${RUNNER_OS}-${RUNNER_ARCH}.tar.gz" -C stage .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: package-${{ matrix.os }}
           path: rudy-seccomp-lens-${{ env.RELEASE_TAG }}-*
@@ -53,8 +53,8 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
           merge-multiple: true
