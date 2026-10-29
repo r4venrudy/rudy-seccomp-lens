@@ -17,6 +17,7 @@ permissions:
 jobs:
   package:
     name: Package ${{ matrix.os }}
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
@@ -49,6 +50,7 @@ jobs:
 
   publish:
     needs: package
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
