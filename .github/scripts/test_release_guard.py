@@ -36,4 +36,38 @@ class ReleaseIntegrityTests(unittest.TestCase):
         if __import__('os').name=='nt':self.skipTest('symlink creation needs optional Windows privileges')
         path=self.zip();link=self.root/'linked.zip';link.symlink_to(path)
         with self.assertRaises(ValueError):guard.verify(link)
+class ReleasePathTests(unittest.TestCase):
+    def test_reject_zip_paths(self):
+        for member in ['../escape','/absolute','C:/drive','folder\\escape','a/../b','stream:name','AUX.txt','trailing.']:
+            with self.subTest(member=member):
+                path=self.root/'unsafe.zip'
+                normalized=member.replace('\\','/')
+                with zipfile.ZipFile(path,'w') as z:z.writestr(normalized,b'invented')
+                if normalized!=member:path.write_bytes(path.read_bytes().replace(normalized.encode(),member.encode()))
+                with self.assertRaises(ValueError):guard.verify(path)
+    def setUp(self):self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
+    def tearDown(self):self.tmp.cleanup()
+    def test_collision(self):
+        path=self.root/'collision.zip'
+        for names in [('One.txt','one.txt'),('folder/file','folder//file'),('file','file/child'),('caf\u00e9','cafe\u0301')]:
+            with zipfile.ZipFile(path,'w') as z:
+                for name in names:z.writestr(name,b'example')
+            with self.assertRaises(ValueError):guard.verify(path)
+    def test_zip_link(self):
+        path=self.root/'link.zip';info=zipfile.ZipInfo('linked');info.create_system=3;info.external_attr=0o120777<<16
+        with zipfile.ZipFile(path,'w') as z:z.writestr(info,b'target')
+        with self.assertRaises(ValueError):guard.verify(path)
+    def test_tar_link(self):
+        path=self.root/'link.tar.gz'
+        with tarfile.open(path,'w:gz') as t:
+            m=tarfile.TarInfo('linked');m.type=tarfile.SYMTYPE;m.linkname='../escape';t.addfile(m)
+        with self.assertRaises(ValueError):guard.verify(path)
+    def test_portable_directories(self):
+        path=self.root/'portable.tar.gz'
+        with tarfile.open(path,'w:gz') as t:
+            m=tarfile.TarInfo('./');m.type=tarfile.DIRTYPE;t.addfile(m)
+            m=tarfile.TarInfo('./bin/');m.type=tarfile.DIRTYPE;t.addfile(m)
+            m=tarfile.TarInfo('./bin/tool');m.size=3;t.addfile(m,io.BytesIO(b'abc'))
+        self.assertEqual(guard.verify(path),(3,3))
+
 if __name__=='__main__':unittest.main()

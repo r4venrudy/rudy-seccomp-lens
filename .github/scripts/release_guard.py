@@ -1,10 +1,33 @@
 """Validate outer release packages without extracting files or following links."""
 from pathlib import Path
-import argparse,tarfile,zipfile
+import argparse,tarfile,zipfile,stat
 MAX_ARCHIVE=512*1024*1024
 MAX_MEMBER=512*1024*1024
 MAX_TOTAL=2*1024*1024*1024
 MAX_ENTRIES=100_000
+
+def validate_paths(records):
+    import posixpath,stat,unicodedata
+    from pathlib import PurePosixPath
+    paths={}
+    for name,directory,linked,special in records:
+        if linked or special:raise ValueError('link or special file in portable release')
+        if name in ('.','./') and directory:continue
+        if not name or name.startswith('/') or '\\' in name or ':' in name or any(ord(c)<32 or ord(c)==127 for c in name):raise ValueError('unsafe release member name')
+        if '..' in PurePosixPath(name).parts:raise ValueError('parent traversal in release')
+        normalized=posixpath.normpath(name).rstrip('/')
+        if normalized in ('','.','..'):raise ValueError('empty release member')
+        parts=normalized.split('/')
+        devices={'con','prn','aux','nul'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
+        if any(p.endswith(('.', ' ')) or p.split('.')[0].casefold() in devices for p in parts):raise ValueError('nonportable Windows member name')
+        key=unicodedata.normalize('NFC',normalized).casefold()
+        if key in paths:raise ValueError('duplicate or case/normalization-colliding release member')
+        paths[key]=directory
+    for key in paths:
+        parts=key.split('/')
+        for i in range(1,len(parts)):
+            parent='/'.join(parts[:i])
+            if parent in paths and not paths[parent]:raise ValueError('file used as a release directory')
 
 def verify(path):
     path=Path(path)
@@ -25,15 +48,19 @@ def verify(path):
     if path.name.endswith(('.zip','.jar','.nupkg','.whl')):
         with zipfile.ZipFile(path) as archive:
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
+            validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             for member in archive.infolist():
                 if member.flag_bits&1:raise ValueError('encrypted release member')
                 with archive.open(member) as stream:consume(stream,member.file_size)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
         with tarfile.open(path) as archive:
+            records=[]
             for member in archive:
+                records.append((member.name,member.isdir(),member.issym() or member.islnk(),not(member.isfile() or member.isdir() or member.issym() or member.islnk())))
                 if member.isfile():
                     with archive.extractfile(member) as stream:consume(stream,member.size)
                 else:consume(None,0)
+            validate_paths(records)
     else:raise ValueError('unsupported release archive')
     return count,total
 
