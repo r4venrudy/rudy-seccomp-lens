@@ -46,3 +46,18 @@ class ReleaseChecksumsTests(unittest.TestCase):
         (self.directory / "SHA256SUMS").touch()
         with self.assertRaisesRegex(ValueError, "exactly one"):
             verify_checksums(self.directory)
+
+    def test_rejects_unlisted_archives(self):
+        for name in ("extra.zip", "extra.ZIP", "extra.nupkg", "extra.tar.gz"):
+            with self.subTest(name=name):
+                extra = self.directory / name
+                extra.touch()
+                try:
+                    with self.assertRaisesRegex(ValueError, "unlisted release archives"):
+                        verify_checksums(self.directory)
+                finally:
+                    extra.unlink()
+
+    def test_ignores_non_archive_checksum_sidecars(self):
+        (self.directory / "demo.zip.sha256").write_text(self.row, encoding="ascii")
+        verify_checksums(self.directory)

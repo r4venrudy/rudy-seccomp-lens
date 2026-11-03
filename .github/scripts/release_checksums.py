@@ -21,6 +21,7 @@ def verify_checksums(directory: Path) -> None:
         raise ValueError("SHA-256 manifest is empty or oversized")
 
     seen = set()
+    listed = set()
     for index, row in enumerate(contents.decode("ascii").splitlines(), 1):
         match = ROW.fullmatch(row)
         if not match:
@@ -30,6 +31,7 @@ def verify_checksums(directory: Path) -> None:
         if key in seen:
             raise ValueError(f"duplicate SHA-256 entry for {name}")
         seen.add(key)
+        listed.add(name)
 
         asset = directory / name
         if not name.endswith(ARCHIVE_SUFFIXES) or asset.is_symlink() or not asset.is_file():
@@ -40,6 +42,13 @@ def verify_checksums(directory: Path) -> None:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         if digest != expected.lower():
             raise ValueError(f"SHA-256 mismatch for {name}")
+
+
+    staged = {entry.name for entry in directory.iterdir()
+              if entry.name.lower().endswith(ARCHIVE_SUFFIXES)}
+    unlisted = staged - listed
+    if unlisted:
+        raise ValueError(f"unlisted release archives: {', '.join(sorted(unlisted))}")
 
 
 if __name__ == "__main__":
