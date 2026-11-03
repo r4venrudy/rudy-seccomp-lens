@@ -78,5 +78,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python .github/scripts/release_checksums.py dist
           python .github/scripts/release_guard.py dist
           gh release upload "$RELEASE_TAG" dist/* --clobber
