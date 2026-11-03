@@ -1,4 +1,6 @@
 """Validate outer release packages without extracting files or following links."""
+import gzip
+import lzma
 from pathlib import Path
 import argparse,tarfile,zipfile,stat
 MAX_ARCHIVE=512*1024*1024
@@ -29,6 +31,20 @@ def validate_paths(records):
             parent='/'.join(parts[:i])
             if parent in paths and not paths[parent]:raise ValueError('file used as a release directory')
 
+
+def verify_compression_envelope(path):
+    # TAR iteration can finish at its end marker without reading the codec footer.
+    # Limit all decoded bytes, including headers, padding and trailing data.
+    limit = MAX_TOTAL + 128 * 1024 * 1024
+    opener = lzma.open if path.name.endswith(".tar.xz") else gzip.open
+    decoded = 0
+    with opener(path, "rb") as stream:
+        while chunk := stream.read(65536):
+            decoded += len(chunk)
+            if decoded > limit:
+                raise ValueError("compressed TAR envelope exceeds resource limits")
+
+
 def verify(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_ARCHIVE:raise ValueError('archive input is not a bounded regular file')
@@ -53,6 +69,7 @@ def verify(path):
                 if member.flag_bits&1:raise ValueError('encrypted release member')
                 with archive.open(member) as stream:consume(stream,member.file_size)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
+        verify_compression_envelope(path)
         with tarfile.open(path) as archive:
             records=[]
             for member in archive:
