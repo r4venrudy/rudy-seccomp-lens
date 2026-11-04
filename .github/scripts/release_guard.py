@@ -55,6 +55,7 @@ def verify(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_ARCHIVE:raise ValueError('archive input is not a bounded regular file')
     total=0;count=0
+    has_file_payload=False
     def consume(stream,size):
         nonlocal total,count
         count+=1;total+=size
@@ -78,6 +79,7 @@ def verify(path):
                     raise ValueError('invalid ZIP directory payload or type')
                 if not member.is_dir() and kind==stat.S_IFDIR:
                     raise ValueError('ZIP directory lacks a trailing slash')
+                has_file_payload |= not member.is_dir() and member.file_size>0
                 with archive.open(member) as stream:consume(stream,member.file_size)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
         verify_compression_envelope(path)
@@ -90,6 +92,7 @@ def verify(path):
                     raise ValueError('TAR directory declares a payload')
                 records.append((member.name,member.isdir(),member.issym() or member.islnk(),not(member.isfile() or member.isdir() or member.issym() or member.islnk())))
                 if member.isfile():
+                    has_file_payload |= member.size>0
                     with archive.extractfile(member) as stream:consume(stream,member.size)
                 else:consume(None,0)
             validate_paths(records)
@@ -104,6 +107,8 @@ def verify(path):
             if padding%512:
                 raise ValueError('partial record after TAR end')
     else:raise ValueError('unsupported release archive')
+    if not has_file_payload:
+        raise ValueError('release archive contains no nonempty file')
     return count,total
 
 def main():

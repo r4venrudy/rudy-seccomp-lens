@@ -80,3 +80,11 @@ class ReleaseContractRegressions(unittest.TestCase):
                     path.write_bytes(gzip.compress(head + tail))
                     with self.assertRaisesRegex(ValueError, diagnostic):
                         verify(path)
+    def test_nonempty_payload_required(self):
+        with TemporaryDirectory() as scratch:
+            path = Path(scratch) / "empty.zip"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("folder/", b"")
+                archive.writestr("folder/empty", b"")
+            with self.assertRaisesRegex(ValueError, "no nonempty file"):
+                verify(path)
