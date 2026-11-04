@@ -12,6 +12,7 @@ def validate_paths(records):
     import posixpath,stat,unicodedata
     from pathlib import PurePosixPath
     paths={}
+    spellings={}
     for name,directory,linked,special in records:
         if linked or special:raise ValueError('link or special file in portable release')
         if name in ('.','./') and directory:continue
@@ -25,6 +26,11 @@ def validate_paths(records):
         key=unicodedata.normalize('NFC',normalized).casefold()
         if key in paths:raise ValueError('duplicate or case/normalization-colliding release member')
         paths[key]=directory
+        for i in range(1,len(parts)+1):
+            spelling='/'.join(parts[:i])
+            canonical=unicodedata.normalize('NFC',spelling).casefold()
+            previous=spellings.setdefault(canonical,spelling)
+            if previous!=spelling:raise ValueError('colliding release path prefix spellings')
     for key in paths:
         parts=key.split('/')
         for i in range(1,len(parts)):

@@ -33,3 +33,11 @@ class ReleaseContractRegressions(unittest.TestCase):
             with patch.object(release_checksums, "MAX_CHECKSUM_TOTAL", 7, create=True):
                 with self.assertRaisesRegex(ValueError, "aggregate checksum"):
                     verify_checksums(folder)
+    def test_implicit_directory_aliases(self):
+        with TemporaryDirectory() as scratch:
+            path = Path(scratch) / "aliases.zip"
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("Bin/first", b"1")
+                archive.writestr("bin/second", b"2")
+            with self.assertRaisesRegex(ValueError, "prefix spellings"):
+                verify(path)
