@@ -73,6 +73,11 @@ def verify(path):
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             for member in archive.infolist():
                 if member.flag_bits&1:raise ValueError('encrypted release member')
+                kind=stat.S_IFMT(member.external_attr>>16) if member.create_system==3 else 0
+                if member.is_dir() and (member.file_size or kind==stat.S_IFREG):
+                    raise ValueError('invalid ZIP directory payload or type')
+                if not member.is_dir() and kind==stat.S_IFDIR:
+                    raise ValueError('ZIP directory lacks a trailing slash')
                 with archive.open(member) as stream:consume(stream,member.file_size)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
         verify_compression_envelope(path)

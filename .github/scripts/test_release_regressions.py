@@ -41,3 +41,18 @@ class ReleaseContractRegressions(unittest.TestCase):
                 archive.writestr("bin/second", b"2")
             with self.assertRaisesRegex(ValueError, "prefix spellings"):
                 verify(path)
+    def test_zip_directory_contract(self):
+        with TemporaryDirectory() as scratch:
+            for name, mode, payload in [("dir/", stat.S_IFDIR, b"x"),
+                                        ("dir/", stat.S_IFREG, b""),
+                                        ("dir", stat.S_IFDIR, b"")]:
+                with self.subTest(name=name, mode=mode, payload=payload):
+                    path = Path(scratch) / "directory.zip"
+                    entry = zipfile.ZipInfo(name)
+                    entry.create_system = 3
+                    entry.external_attr = (mode | 0o755) << 16
+                    with zipfile.ZipFile(path, "w") as archive:
+                        archive.writestr(entry, payload)
+                        archive.writestr("file", b"x")
+                    with self.assertRaisesRegex(ValueError, "ZIP directory"):
+                        verify(path)
