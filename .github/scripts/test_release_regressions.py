@@ -56,3 +56,15 @@ class ReleaseContractRegressions(unittest.TestCase):
                         archive.writestr("file", b"x")
                     with self.assertRaisesRegex(ValueError, "ZIP directory"):
                         verify(path)
+    def test_tar_directory_payload(self):
+        with TemporaryDirectory() as scratch:
+            path = Path(scratch) / "directory.tar.gz"
+            directory = tarfile.TarInfo("dir")
+            directory.type = tarfile.DIRTYPE
+            directory.size = 512
+            # Set a directory's size directly in its header. No file content
+            # is interpreted as that directory's payload by the baseline.
+            with gzip.open(path, "wb") as stream:
+                stream.write(directory.tobuf() + bytes(2048))
+            with self.assertRaisesRegex(ValueError, "directory declares"):
+                verify(path)

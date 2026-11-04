@@ -84,6 +84,10 @@ def verify(path):
         with tarfile.open(path) as archive:
             records=[]
             for member in archive:
+                if member.sparse is not None:
+                    raise ValueError('sparse TAR members are outside the release profile')
+                if member.isdir() and member.size:
+                    raise ValueError('TAR directory declares a payload')
                 records.append((member.name,member.isdir(),member.issym() or member.islnk(),not(member.isfile() or member.isdir() or member.issym() or member.islnk())))
                 if member.isfile():
                     with archive.extractfile(member) as stream:consume(stream,member.size)
