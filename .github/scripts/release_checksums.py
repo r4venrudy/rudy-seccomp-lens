@@ -6,6 +6,7 @@ ARCHIVE_SUFFIXES = (".zip", ".jar", ".nupkg", ".whl", ".tar.gz", ".tgz", ".tar.x
 MANIFEST_NAMES = ("SHA256SUMS", "SHA256SUMS.txt")
 MAX_MANIFEST = 1024 * 1024
 MAX_ASSET = 512 * 1024 * 1024
+MAX_CHECKSUM_TOTAL = 2 * 1024 * 1024 * 1024
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
 
 
@@ -22,6 +23,7 @@ def verify_checksums(directory: Path) -> None:
 
     seen = set()
     listed = set()
+    total_bytes = 0
     text = contents.decode("ascii").replace("\r\n", "\n")
     rows = text.removesuffix("\n").split("\n")
     for index, row in enumerate(rows, 1):
@@ -38,8 +40,12 @@ def verify_checksums(directory: Path) -> None:
         asset = directory / name
         if not name.endswith(ARCHIVE_SUFFIXES) or asset.is_symlink() or not asset.is_file():
             raise ValueError(f"expected a regular release archive for {name}")
-        if asset.stat().st_size > MAX_ASSET:
+        size = asset.stat().st_size
+        if size > MAX_ASSET:
             raise ValueError(f"release archive exceeds checksum limit: {name}")
+        total_bytes += size
+        if total_bytes > MAX_CHECKSUM_TOTAL:
+            raise ValueError("staged release exceeds the aggregate checksum limit")
         with asset.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         if digest != expected.lower():
