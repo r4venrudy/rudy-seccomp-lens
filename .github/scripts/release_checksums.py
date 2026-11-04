@@ -22,7 +22,9 @@ def verify_checksums(directory: Path) -> None:
 
     seen = set()
     listed = set()
-    for index, row in enumerate(contents.decode("ascii").splitlines(), 1):
+    text = contents.decode("ascii").replace("\r\n", "\n")
+    rows = text.removesuffix("\n").split("\n")
+    for index, row in enumerate(rows, 1):
         match = ROW.fullmatch(row)
         if not match:
             raise ValueError(f"invalid SHA-256 manifest row {index}")
