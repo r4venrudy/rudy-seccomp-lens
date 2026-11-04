@@ -93,6 +93,16 @@ def verify(path):
                     with archive.extractfile(member) as stream:consume(stream,member.size)
                 else:consume(None,0)
             validate_paths(records)
+            archive.fileobj.seek(archive.offset)
+            if archive.fileobj.read(1024)!=bytes(1024):
+                raise ValueError('TAR end requires two zero records')
+            padding=0
+            while tail:=archive.fileobj.read(65536):
+                if tail.strip(b'\0'):
+                    raise ValueError('nonzero bytes after TAR end records')
+                padding+=len(tail)
+            if padding%512:
+                raise ValueError('partial record after TAR end')
     else:raise ValueError('unsupported release archive')
     return count,total
 

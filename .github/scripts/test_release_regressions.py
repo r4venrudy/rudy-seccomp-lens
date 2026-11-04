@@ -68,3 +68,15 @@ class ReleaseContractRegressions(unittest.TestCase):
                 stream.write(directory.tobuf() + bytes(2048))
             with self.assertRaisesRegex(ValueError, "directory declares"):
                 verify(path)
+    def test_tar_end_records(self):
+        with TemporaryDirectory() as scratch:
+            path = Path(scratch) / "end.tar.gz"
+            entry = tarfile.TarInfo("demo")
+            entry.size = 1
+            head = entry.tobuf() + b"x" + bytes(511)
+            for tail, diagnostic in [(bytes(512), "two zero"), (bytes(1024) + b"x", "nonzero"),
+                                     (bytes(1025), "partial record")]:
+                with self.subTest(diagnostic=diagnostic):
+                    path.write_bytes(gzip.compress(head + tail))
+                    with self.assertRaisesRegex(ValueError, diagnostic):
+                        verify(path)
