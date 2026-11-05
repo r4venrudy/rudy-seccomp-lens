@@ -46,8 +46,17 @@ def verify_checksums(directory: Path) -> None:
         total_bytes += size
         if total_bytes > MAX_CHECKSUM_TOTAL:
             raise ValueError("staged release exceeds the aggregate checksum limit")
+        hasher = hashlib.sha256()
+        remaining = size
         with asset.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            while chunk := stream.read(min(65536, remaining + 1)):
+                if len(chunk) > remaining:
+                    raise ValueError(f"release asset changed while hashing: {name}")
+                hasher.update(chunk)
+                remaining -= len(chunk)
+        if remaining:
+            raise ValueError(f"release asset changed while hashing: {name}")
+        digest = hasher.hexdigest()
         if digest != expected.lower():
             raise ValueError(f"SHA-256 mismatch for {name}")
 

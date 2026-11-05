@@ -37,3 +37,25 @@ class ReleasePortabilityRegressions(unittest.TestCase):
                     archive.write_bytes(data)
                     with self.assertRaisesRegex(ValueError, "ZIP local metadata"):
                         verify(archive)
+
+    def test_checksum_rejects_size_change(self):
+        with TemporaryDirectory() as scratch:
+            directory = Path(scratch)
+            asset = directory / "demo.zip"
+            payload = b"12345"
+            asset.write_bytes(payload)
+            digest = hashlib.sha256(payload).hexdigest()
+            (directory / "SHA256SUMS").write_text(f"{digest}  demo.zip\n", encoding="ascii")
+            original_stat = Path.stat
+            for declared in (4, 6):
+                with self.subTest(declared=declared):
+                    def changed_stat(path, *args, **kwargs):
+                        result = original_stat(path, *args, **kwargs)
+                        if path == asset:
+                            fields = list(result)
+                            fields[6] = declared
+                            return os.stat_result(fields)
+                        return result
+                    with patch.object(Path, "stat", changed_stat):
+                        with self.assertRaisesRegex(ValueError, "changed while hashing"):
+                            verify_checksums(directory)
