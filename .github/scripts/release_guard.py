@@ -54,6 +54,23 @@ def verify_compression_envelope(path):
                 raise ValueError("compressed TAR envelope exceeds resource limits")
 
 
+
+def validate_zip_metadata(archive, member):
+    # ZipFile uses central metadata to decompress. Verify the corresponding
+    # local record advertises the same flags and compression method.
+    position = archive.fp.tell()
+    try:
+        archive.fp.seek(member.header_offset)
+        header = archive.fp.read(10)
+        if len(header) != 10 or header[:4] != b"PK\x03\x04":
+            raise ValueError("invalid ZIP local metadata")
+        import struct
+        _, flags, method = struct.unpack("<HHH", header[4:])
+        if flags != member.flag_bits or method != member.compress_type:
+            raise ValueError("ZIP local metadata disagrees with central record")
+    finally:
+        archive.fp.seek(position)
+
 def verify(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_ARCHIVE:raise ValueError('archive input is not a bounded regular file')
@@ -76,6 +93,7 @@ def verify(path):
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             for member in archive.infolist():
+                validate_zip_metadata(archive, member)
                 if member.flag_bits&1:raise ValueError('encrypted release member')
                 kind=stat.S_IFMT(member.external_attr>>16) if member.create_system==3 else 0
                 if member.is_dir() and (member.file_size or kind==stat.S_IFREG):

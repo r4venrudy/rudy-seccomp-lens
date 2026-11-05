@@ -24,3 +24,16 @@ class ReleasePortabilityRegressions(unittest.TestCase):
                         writer.writestr(name, b"payload")
                     with self.assertRaisesRegex(ValueError, "Windows"):
                         verify(archive)
+
+    def test_zip_local_metadata_matches_central(self):
+        with TemporaryDirectory() as scratch:
+            archive = Path(scratch) / "metadata.zip"
+            for offset, changed in ((6, 0x800), (8, 8)):
+                with self.subTest(offset=offset):
+                    with zipfile.ZipFile(archive, "w") as writer:
+                        writer.writestr("file.txt", b"payload")
+                    data = bytearray(archive.read_bytes())
+                    struct.pack_into("<H", data, offset, changed)
+                    archive.write_bytes(data)
+                    with self.assertRaisesRegex(ValueError, "ZIP local metadata"):
+                        verify(archive)
