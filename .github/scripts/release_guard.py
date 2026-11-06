@@ -63,13 +63,40 @@ def validate_zip_metadata(archive, member):
     position = archive.fp.tell()
     try:
         archive.fp.seek(member.header_offset)
-        header = archive.fp.read(10)
-        if len(header) != 10 or header[:4] != b"PK\x03\x04":
+        header = archive.fp.read(30)
+        if len(header) != 30 or header[:4] != b"PK\x03\x04":
             raise ValueError("invalid ZIP local metadata")
         import struct
-        _, flags, method = struct.unpack("<HHH", header[4:])
+        _, flags, method = struct.unpack("<HHH", header[4:10])
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
+        if flags & 8:
+            return
+        crc, packed, size, name_length, extra_length = struct.unpack("<IIIHH", header[14:])
+        if size == 0xFFFFFFFF or packed == 0xFFFFFFFF:
+            archive.fp.seek(name_length, 1)
+            extra = archive.fp.read(extra_length)
+            cursor = 0
+            while cursor + 4 <= len(extra):
+                kind, length = struct.unpack_from("<HH", extra, cursor)
+                cursor += 4
+                if cursor + length > len(extra):
+                    break
+                if kind == 1:
+                    payload = extra[cursor:cursor + length]
+                    required = 8 * ((size == 0xFFFFFFFF) + (packed == 0xFFFFFFFF))
+                    if len(payload) < required:
+                        break
+                    used = 0
+                    if size == 0xFFFFFFFF and len(payload) >= 8:
+                        size = struct.unpack_from("<Q", payload)[0]
+                        used = 8
+                    if packed == 0xFFFFFFFF and len(payload) >= used + 8:
+                        packed = struct.unpack_from("<Q", payload, used)[0]
+                    break
+                cursor += length
+        if (crc, packed, size) != (member.CRC, member.compress_size, member.file_size):
+            raise ValueError("ZIP local CRC or size disagrees with central record")
     finally:
         archive.fp.seek(position)
 
