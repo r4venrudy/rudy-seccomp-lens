@@ -21,6 +21,8 @@ def validate_paths(records):
         normalized=posixpath.normpath(name).rstrip('/')
         if normalized in ('','.','..'):raise ValueError('empty release member')
         parts=normalized.split('/')
+        if len(name.encode('utf-8', errors='surrogatepass')) > 4096 or len(parts) > 128:
+            raise ValueError('release member exceeds path budget')
         if any(character in '<>"|?*' for character in name):
             raise ValueError('nonportable Windows member name')
         devices={'con','prn','aux','nul'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
