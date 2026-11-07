@@ -35,3 +35,19 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 verify(path)
             path.write_bytes(base[:-2] + b"\x03\0" + b"abc")
             self.assertEqual(verify(path), (1, 3))
+
+    def test_zip_disk_and_entry_counts(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "counts.zip"
+            base = basic_zip()
+            for offset, value in ((4, 1), (6, 1), (8, 2)):
+                data = bytearray(base)
+                struct.pack_into("<H", data, len(base) - 22 + offset, value)
+                path.write_bytes(data)
+                with self.assertRaisesRegex(ValueError, "ZIP disk or entry count"):
+                    verify(path)
+            data = bytearray(base)
+            struct.pack_into("<HH", data, len(base) - 14, 2, 2)
+            path.write_bytes(data)
+            with self.assertRaisesRegex(ValueError, "ZIP directory entry count"):
+                verify(path)

@@ -11,4 +11,11 @@ def open_zip(stream):
         raise zipfile.BadZipFile("missing ZIP end record")
     if footer[zipfile._ECD_LOCATION] + zipfile.sizeEndCentDir + footer[zipfile._ECD_COMMENT_SIZE] != size:
         raise ValueError("ZIP footer extent disagrees with file size")
-    return zipfile.ZipFile(stream)
+    count = footer[zipfile._ECD_ENTRIES_TOTAL]
+    if footer[zipfile._ECD_DISK_NUMBER] or footer[zipfile._ECD_DISK_START] or footer[zipfile._ECD_ENTRIES_THIS_DISK] != count:
+        raise ValueError("ZIP disk or entry count is inconsistent")
+    archive = zipfile.ZipFile(stream)
+    if len(archive.infolist()) != count:
+        archive.close()
+        raise ValueError("ZIP directory entry count disagrees with footer")
+    return archive
