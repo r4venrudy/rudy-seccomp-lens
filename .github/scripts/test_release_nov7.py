@@ -95,3 +95,15 @@ class ReleaseBoundaryTests(unittest.TestCase):
                 path.write_bytes(damaged)
                 with self.assertRaisesRegex(ValueError, "ZIP data descriptor"):
                     verify(path)
+
+    def test_portable_component_byte_limit(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "components.zip"
+            for component in ("a" * 256, "\u00e9" * 128):
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr("bin/" + component, b"x")
+                with self.assertRaisesRegex(ValueError, "component exceeds"):
+                    verify(path)
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("bin/" + "a" * 255, b"x")
+            self.assertEqual(verify(path), (1, 1))

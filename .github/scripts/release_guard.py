@@ -24,6 +24,8 @@ def validate_paths(records):
         parts=normalized.split('/')
         if len(name.encode('utf-8', errors='surrogatepass')) > 4096 or len(parts) > 128:
             raise ValueError('release member exceeds path budget')
+        if any(len(part.encode('utf-8', errors='surrogatepass')) > 255 for part in parts):
+            raise ValueError('release path component exceeds 255 UTF-8 bytes')
         if any(character in '<>"|?*' for character in name):
             raise ValueError('nonportable Windows member name')
         devices={'con','prn','aux','nul'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
