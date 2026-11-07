@@ -23,6 +23,7 @@ def verify_checksums(directory: Path) -> None:
 
     seen = set()
     listed = set()
+    entries = []
     total_bytes = 0
     text = contents.decode("ascii").replace("\r\n", "\n")
     rows = text.removesuffix("\n").split("\n")
@@ -37,8 +38,21 @@ def verify_checksums(directory: Path) -> None:
         seen.add(key)
         listed.add(name)
 
+        if not name.endswith(ARCHIVE_SUFFIXES):
+            raise ValueError(f"expected a regular release archive for {name}")
+        entries.append((name, expected))
+
+    staged = {entry.name for entry in directory.iterdir()
+              if entry.name.lower().endswith(ARCHIVE_SUFFIXES)}
+    unlisted = staged - listed
+    if unlisted:
+        raise ValueError(f"unlisted release archives: {', '.join(sorted(unlisted))}")
+    missing = listed - staged
+    if missing:
+        raise ValueError(f"expected a regular release archive for {min(missing)}")
+    for name, expected in entries:
         asset = directory / name
-        if not name.endswith(ARCHIVE_SUFFIXES) or asset.is_symlink() or not asset.is_file():
+        if asset.is_symlink() or not asset.is_file():
             raise ValueError(f"expected a regular release archive for {name}")
         size = asset.stat().st_size
         if size > MAX_ASSET:
@@ -59,13 +73,6 @@ def verify_checksums(directory: Path) -> None:
         digest = hasher.hexdigest()
         if digest != expected.lower():
             raise ValueError(f"SHA-256 mismatch for {name}")
-
-
-    staged = {entry.name for entry in directory.iterdir()
-              if entry.name.lower().endswith(ARCHIVE_SUFFIXES)}
-    unlisted = staged - listed
-    if unlisted:
-        raise ValueError(f"unlisted release archives: {', '.join(sorted(unlisted))}")
 
 
 if __name__ == "__main__":

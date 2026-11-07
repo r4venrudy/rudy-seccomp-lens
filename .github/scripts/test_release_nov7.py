@@ -124,3 +124,30 @@ class ReleaseBoundaryTests(unittest.TestCase):
             for trailer in (b"\0" * 4, lzma.compress(b"\0" * 512)):
                 path.write_bytes(base + trailer)
                 self.assertEqual(verify(path), (1, 3))
+
+    def test_checksum_inventory_precedes_payload_io(self):
+        with TemporaryDirectory() as folder:
+            directory = Path(folder)
+            asset = directory / "payload.zip"
+            asset.write_bytes(b"payload")
+            digest = hashlib.sha256(b"payload").hexdigest()
+            manifest = directory / "SHA256SUMS"
+            original = Path.open
+            opened = []
+            def track(path, *args, **kwargs):
+                if path == asset:
+                    opened.append(path)
+                return original(path, *args, **kwargs)
+            cases = [
+                (f"{digest}  payload.zip\nmalformed\n", "manifest row"),
+                (f"{digest}  payload.zip\n{digest}  missing.zip\n", "regular release archive"),
+                (f"{digest}  payload.zip\n", "unlisted release archives"),
+            ]
+            for i, (text, diagnostic) in enumerate(cases):
+                manifest.write_text(text, encoding="ascii")
+                if i == 2:
+                    (directory / "unlisted.zip").write_bytes(b"x")
+                with patch.object(Path, "open", track):
+                    with self.assertRaisesRegex(ValueError, diagnostic):
+                        verify_checksums(directory)
+                self.assertEqual(opened, [], "invalid inventory must fail before hashing")
