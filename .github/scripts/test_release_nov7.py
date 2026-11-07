@@ -51,3 +51,21 @@ class ReleaseBoundaryTests(unittest.TestCase):
             path.write_bytes(data)
             with self.assertRaisesRegex(ValueError, "ZIP directory entry count"):
                 verify(path)
+
+    def test_zip_directory_budget(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "budget.zip"
+            path.write_bytes(basic_zip())
+            import sys
+            module = sys.modules.get("release_zip")
+            if module is None:
+                module = sys.modules["release_guard"]
+            with patch.object(module, "MAX_DIRECTORY_BYTES", 16, create=True):
+                with self.assertRaisesRegex(ValueError, "ZIP directory exceeds"):
+                    verify(path)
+            data = bytearray(path.read_bytes())
+            struct.pack_into("<HH", data, len(data) - 14, 500, 500)
+            path.write_bytes(data)
+            with patch.object(module, "MAX_DIRECTORY_ENTRIES", 100, create=True):
+                with self.assertRaisesRegex(ValueError, "ZIP directory exceeds"):
+                    verify(path)
