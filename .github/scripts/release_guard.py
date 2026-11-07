@@ -46,18 +46,63 @@ def validate_paths(records):
             if parent in paths and not paths[parent]:raise ValueError('file used as a release directory')
 
 
+def verify_xz_envelope(path, limit):
+    decoded = 0
+    streams = 0
+    with path.open("rb") as stream:
+        pending = stream.read(65536)
+        while pending:
+            if len(pending) < 6:
+                pending += stream.read(6 - len(pending))
+            if not pending.startswith(bytes.fromhex("fd377a585a00")):
+                raise ValueError("invalid XZ stream header")
+            streams += 1
+            if streams > 4096:
+                raise ValueError("XZ stream count exceeds resource limit")
+            decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ, memlimit=128 * 1024 * 1024)
+            while not decoder.eof:
+                if decoder.needs_input and not pending:
+                    pending = stream.read(65536)
+                    if not pending:
+                        raise EOFError("truncated XZ compression envelope")
+                try:
+                    decoded += len(decoder.decompress(pending, max_length=65536))
+                except lzma.LZMAError as error:
+                    raise ValueError("invalid XZ compression envelope") from error
+                pending = b""
+                if decoded > limit:
+                    raise ValueError("compressed TAR envelope exceeds resource limits")
+            pending = decoder.unused_data or stream.read(65536)
+            padding = 0
+            while pending:
+                remainder = pending.lstrip(bytes(1))
+                padding += len(pending) - len(remainder)
+                pending = remainder or stream.read(65536)
+                if remainder:
+                    break
+            if padding % 4:
+                raise ValueError("invalid XZ stream padding")
+            # The TAR reader uses LZMAFile, which can stop at inter-stream padding.
+            if padding and pending:
+                raise ValueError("XZ stream padding is allowed only after the final stream")
+    if streams == 0:
+        raise ValueError("empty XZ compression envelope")
+    return decoded
+
+
 def verify_compression_envelope(path):
     # TAR iteration can finish at its end marker without reading the codec footer.
     # Limit all decoded bytes, including headers, padding and trailing data.
     limit = MAX_TOTAL + 128 * 1024 * 1024
-    opener = lzma.open if path.name.endswith(".tar.xz") else gzip.open
+    if path.name.endswith(".tar.xz"):
+        return verify_xz_envelope(path, limit)
     decoded = 0
-    with opener(path, "rb") as stream:
+    with gzip.open(path, "rb") as stream:
         while chunk := stream.read(65536):
             decoded += len(chunk)
             if decoded > limit:
                 raise ValueError("compressed TAR envelope exceeds resource limits")
-
+    return decoded
 
 
 def validate_zip_metadata(archive, member):
@@ -136,7 +181,7 @@ def verify(path):
                 has_file_payload |= not member.is_dir() and member.file_size>0
                 with archive.open(member) as stream:consume(stream,member.file_size)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
-        verify_compression_envelope(path)
+        decoded_size = verify_compression_envelope(path)
         with tarfile.open(path) as archive:
             records=[]
             for member in archive:
@@ -153,12 +198,16 @@ def verify(path):
             archive.fileobj.seek(archive.offset)
             if archive.fileobj.read(1024)!=bytes(1024):
                 raise ValueError('TAR end requires two zero records')
-            padding=0
-            while tail:=archive.fileobj.read(65536):
-                if tail.strip(b'\0'):
+            padding = decoded_size - archive.fileobj.tell()
+            if padding < 0:
+                raise ValueError('partial record after TAR end')
+            remaining = padding
+            while remaining:
+                tail = archive.fileobj.read(min(65536, remaining))
+                if not tail or tail.strip(b'\0'):
                     raise ValueError('nonzero bytes after TAR end records')
-                padding+=len(tail)
-            if padding%512:
+                remaining -= len(tail)
+            if padding % 512:
                 raise ValueError('partial record after TAR end')
     else:raise ValueError('unsupported release archive')
     if not has_file_payload:

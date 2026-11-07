@@ -107,3 +107,20 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with zipfile.ZipFile(path, "w") as archive:
                 archive.writestr("bin/" + "a" * 255, b"x")
             self.assertEqual(verify(path), (1, 1))
+
+    def test_xz_stream_trailer(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "codec.tar.xz"
+            raw = io.BytesIO()
+            with tarfile.open(fileobj=raw, mode="w") as archive:
+                entry = tarfile.TarInfo("payload")
+                entry.size = 3
+                archive.addfile(entry, io.BytesIO(b"123"))
+            base = lzma.compress(raw.getvalue())
+            for trailer in (b"trailing-not-xz", b"\0", b"\0" * 4 + b"garbage", b"\0" * 4 + lzma.compress(b"hidden")):
+                path.write_bytes(base + trailer)
+                with self.assertRaisesRegex(ValueError, "XZ"):
+                    verify(path)
+            for trailer in (b"\0" * 4, lzma.compress(b"\0" * 512)):
+                path.write_bytes(base + trailer)
+                self.assertEqual(verify(path), (1, 3))
