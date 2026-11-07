@@ -69,3 +69,29 @@ class ReleaseBoundaryTests(unittest.TestCase):
             with patch.object(module, "MAX_DIRECTORY_ENTRIES", 100, create=True):
                 with self.assertRaisesRegex(ValueError, "ZIP directory exceeds"):
                     verify(path)
+
+    def test_zip_data_descriptors(self):
+        class NonSeekable(io.BytesIO):
+            def seek(self, *args):
+                raise OSError("stream only")
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "descriptor.zip"
+            for wide in (False, True):
+                output = NonSeekable()
+                with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                    with archive.open("streamed", "w", force_zip64=wide) as stream:
+                        stream.write(b"payload")
+                data = output.getvalue()
+                descriptor = data.index(b"PK\x07\x08")
+                central = data.index(b"PK\x01\x02")
+                path.write_bytes(data)
+                self.assertEqual(verify(path), (1, 7))
+                unsigned = bytearray(data[:descriptor] + data[descriptor + 4:])
+                struct.pack_into("<I", unsigned, len(unsigned) - 6, central - 4)
+                path.write_bytes(unsigned)
+                self.assertEqual(verify(path), (1, 7))
+                damaged = bytearray(data)
+                damaged[descriptor + 4] ^= 1
+                path.write_bytes(damaged)
+                with self.assertRaisesRegex(ValueError, "ZIP data descriptor"):
+                    verify(path)
