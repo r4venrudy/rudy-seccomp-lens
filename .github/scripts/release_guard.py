@@ -2,6 +2,7 @@
 import gzip
 import lzma
 from pathlib import Path
+from release_zip import open_zip
 import argparse,tarfile,zipfile,stat
 MAX_ARCHIVE=512*1024*1024
 MAX_MEMBER=512*1024*1024
@@ -118,7 +119,7 @@ def verify(path):
                 if actual>size:raise ValueError('member exceeds declared size')
         if actual!=size:raise ValueError('member is truncated')
     if path.name.endswith(('.zip','.jar','.nupkg','.whl')):
-        with zipfile.ZipFile(path) as archive:
+        with path.open("rb") as package, open_zip(package) as archive:
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             for member in archive.infolist():
