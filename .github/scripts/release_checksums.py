@@ -50,6 +50,7 @@ def verify_checksums(directory: Path) -> None:
     missing = listed - staged
     if missing:
         raise ValueError(f"expected a regular release archive for {min(missing)}")
+    bounded_assets = []
     for name, expected in entries:
         asset = directory / name
         if asset.is_symlink() or not asset.is_file():
@@ -60,6 +61,9 @@ def verify_checksums(directory: Path) -> None:
         total_bytes += size
         if total_bytes > MAX_CHECKSUM_TOTAL:
             raise ValueError("staged release exceeds the aggregate checksum limit")
+        bounded_assets.append((asset, name, expected, size))
+
+    for asset, name, expected, size in bounded_assets:
         hasher = hashlib.sha256()
         remaining = size
         with asset.open("rb") as stream:

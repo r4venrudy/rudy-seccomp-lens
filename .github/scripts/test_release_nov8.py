@@ -88,3 +88,29 @@ class ReleaseStructureTests(unittest.TestCase):
             path.write_bytes(data)
             with self.assertRaisesRegex(ValueError, "DEFLATE stream"):
                 verify(path)
+
+    def test_staged_metadata_precedes_hashing(self):
+        with TemporaryDirectory() as folder:
+            stage = Path(folder)
+            first = stage / "first.zip"
+            first.write_bytes(b"first")
+            later = stage / "later.zip"
+            checksum = hashlib.sha256(b"first").hexdigest()
+            (stage / "SHA256SUMS").write_text(
+                f"{checksum}  first.zip\n{checksum}  later.zip\n", encoding="ascii")
+            later.mkdir()
+            real_open = Path.open
+
+            def track_open(path, *args, **kwargs):
+                if path == first:
+                    self.fail("archive was opened before staged metadata was checked")
+                return real_open(path, *args, **kwargs)
+
+            with patch.object(Path, "open", track_open):
+                with self.assertRaisesRegex(ValueError, "regular release archive for later"):
+                    verify_checksums(stage)
+                later.rmdir()
+                later.write_bytes(b"first")
+                with patch("release_checksums.MAX_CHECKSUM_TOTAL", 9):
+                    with self.assertRaisesRegex(ValueError, "aggregate checksum limit"):
+                        verify_checksums(stage)
