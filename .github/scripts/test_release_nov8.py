@@ -52,3 +52,13 @@ class ReleaseStructureTests(unittest.TestCase):
                     with self.assertRaises((ValueError, zipfile.BadZipFile)):
                         verify(path)
                     constructor.assert_not_called()
+
+    def test_zip_stored_size(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "stored.zip"
+            base = package()
+            path.write_bytes(base)
+            self.assertEqual(verify(path), (1, 150000))
+            path.write_bytes(append_to_member(base, b"junk"))
+            with self.assertRaisesRegex(ValueError, "stored ZIP member size"):
+                verify(path)
