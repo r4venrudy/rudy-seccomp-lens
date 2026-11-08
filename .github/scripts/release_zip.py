@@ -1,6 +1,7 @@
 """Read ZIP framing before handing the archive to the standard decoder."""
 import struct
 import zipfile
+import zlib
 
 MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 MAX_DIRECTORY_ENTRIES = 100_000
@@ -76,3 +77,39 @@ def validate_descriptor(archive, member):
     )
     if matches != 1:
         raise ValueError("ZIP data descriptor disagrees with central record")
+
+
+def validate_deflate(archive, member):
+    """Confirm that the raw DEFLATE stream occupies the entire packed region."""
+    stream = archive.fp
+    stream.seek(member.header_offset + 26)
+    local_sizes = stream.read(4)
+    if len(local_sizes) != 4:
+        raise ValueError("truncated ZIP local lengths")
+    stream.seek(sum(struct.unpack("<HH", local_sizes)), 1)
+
+    decoder = zlib.decompressobj(-15)
+    remaining = member.compress_size
+    decoded = 0
+    block_size = 65536
+    try:
+        while remaining:
+            chunk = stream.read(min(remaining, block_size))
+            if not chunk:
+                raise ValueError("truncated ZIP DEFLATE stream")
+            remaining -= len(chunk)
+            while True:
+                output = decoder.decompress(chunk, block_size)
+                decoded += len(output)
+                if decoded > member.file_size:
+                    raise ValueError("ZIP DEFLATE stream exceeds declared size")
+                if decoder.eof:
+                    if decoder.unused_data or remaining or decoded != member.file_size:
+                        raise ValueError("ZIP DEFLATE stream disagrees with member boundary or size")
+                    return
+                chunk = decoder.unconsumed_tail
+                if not chunk and len(output) < block_size:
+                    break
+    except zlib.error as error:
+        raise ValueError("invalid ZIP DEFLATE stream") from error
+    raise ValueError("ZIP DEFLATE stream is missing its final block")

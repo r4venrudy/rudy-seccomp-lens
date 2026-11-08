@@ -2,7 +2,7 @@
 import gzip
 import lzma
 from pathlib import Path
-from release_zip import open_zip, validate_descriptor
+from release_zip import open_zip, validate_deflate, validate_descriptor
 import argparse,tarfile,zipfile,stat
 MAX_ARCHIVE=512*1024*1024
 MAX_MEMBER=512*1024*1024
@@ -182,6 +182,8 @@ def verify(path):
                     raise ValueError('ZIP directory lacks a trailing slash')
                 has_file_payload |= not member.is_dir() and member.file_size>0
                 with archive.open(member) as stream:consume(stream,member.file_size)
+                if member.compress_type == zipfile.ZIP_DEFLATED:
+                    validate_deflate(archive, member)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
         decoded_size = verify_compression_envelope(path)
         with tarfile.open(path) as archive:

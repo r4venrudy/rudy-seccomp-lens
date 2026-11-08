@@ -62,3 +62,29 @@ class ReleaseStructureTests(unittest.TestCase):
             path.write_bytes(append_to_member(base, b"junk"))
             with self.assertRaisesRegex(ValueError, "stored ZIP member size"):
                 verify(path)
+
+    def test_zip_deflate_boundary(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "deflate.zip"
+            base = package(zipfile.ZIP_DEFLATED)
+            path.write_bytes(base)
+            self.assertEqual(verify(path), (1, 150000))
+            path.write_bytes(append_to_member(base, b"junk"))
+            with self.assertRaisesRegex(ValueError, "DEFLATE stream"):
+                verify(path)
+
+            # A nonfinal stored block emits the entire declared file but has no end.
+            with zipfile.ZipFile(io.BytesIO(base)) as archive:
+                info = archive.infolist()[0]
+            payload = b"abc" * 50000
+            blocks = [payload[i:i + 60000] for i in range(0, len(payload), 60000)]
+            unfinished = b"".join(
+                b"\x00" + struct.pack("<HH", len(block), len(block) ^ 0xffff) + block
+                for block in blocks
+            )
+            data = append_to_member(base, b"\0" * (len(unfinished) - info.compress_size))
+            start = 30 + len(info.filename)
+            data[start:start + len(unfinished)] = unfinished
+            path.write_bytes(data)
+            with self.assertRaisesRegex(ValueError, "DEFLATE stream"):
+                verify(path)
