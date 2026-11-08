@@ -20,11 +20,33 @@ def open_zip(stream):
         raise ValueError("ZIP disk or entry count is inconsistent")
     if footer[zipfile._ECD_SIZE] > MAX_DIRECTORY_BYTES or count > MAX_DIRECTORY_ENTRIES:
         raise ValueError("ZIP directory exceeds resource limits")
-    archive = zipfile.ZipFile(stream)
-    if len(archive.infolist()) != count:
-        archive.close()
+    directory_size = footer[zipfile._ECD_SIZE]
+    directory_end = footer[zipfile._ECD_LOCATION]
+    if footer[zipfile._ECD_SIGNATURE] == zipfile.stringEndArchive64:
+        directory_end -= zipfile.sizeEndCentDir64 + zipfile.sizeEndCentDir64Locator
+    start = directory_end - directory_size
+    if start < 0:
+        raise zipfile.BadZipFile("invalid ZIP directory start")
+    stream.seek(start)
+    remaining = directory_size
+    actual = 0
+    while remaining:
+        if remaining < 46:
+            raise zipfile.BadZipFile("truncated ZIP directory header")
+        header = stream.read(46)
+        if len(header) != 46 or header[:4] != b"PK\x01\x02":
+            raise zipfile.BadZipFile("invalid ZIP directory header")
+        variable_size = sum(struct.unpack_from("<HHH", header, 28))
+        if 46 + variable_size > remaining:
+            raise zipfile.BadZipFile("ZIP directory entry extends beyond directory")
+        actual += 1
+        if actual > count:
+            raise ValueError("ZIP directory entry count disagrees with footer")
+        stream.seek(variable_size, 1)
+        remaining -= 46 + variable_size
+    if actual != count:
         raise ValueError("ZIP directory entry count disagrees with footer")
-    return archive
+    return zipfile.ZipFile(stream)
 
 
 def validate_descriptor(archive, member):
