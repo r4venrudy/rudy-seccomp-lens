@@ -114,3 +114,19 @@ class ReleaseStructureTests(unittest.TestCase):
                 with patch("release_checksums.MAX_CHECKSUM_TOTAL", 9):
                     with self.assertRaisesRegex(ValueError, "aggregate checksum limit"):
                         verify_checksums(stage)
+
+    def test_dos_zip_directory_marker(self):
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "dos.zip"
+            for name in ("folder/", "folder"):
+                member = zipfile.ZipInfo(name)
+                member.create_system = 0
+                member.external_attr = 0x10
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr(member, b"")
+                    archive.writestr("payload", b"abc")
+                if name.endswith("/"):
+                    self.assertEqual(verify(path), (2, 3))
+                else:
+                    with self.assertRaisesRegex(ValueError, "ZIP directory lacks a trailing slash"):
+                        verify(path)
