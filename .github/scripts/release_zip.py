@@ -14,8 +14,19 @@ def open_zip(stream):
     footer = zipfile._EndRecData(stream)
     if footer is None:
         raise zipfile.BadZipFile("missing ZIP end record")
-    if footer[zipfile._ECD_LOCATION] + zipfile.sizeEndCentDir + footer[zipfile._ECD_COMMENT_SIZE] != size:
+    # Validate the physical classic footer independently. CPython versions
+    # differ in whether _ECD_LOCATION points to the classic or ZIP64 record.
+    footer_size = zipfile.sizeEndCentDir
+    tail_offset = max(0, size - footer_size - 65535)
+    stream.seek(tail_offset)
+    tail = stream.read(size - tail_offset)
+    classic = len(tail) - footer_size
+    signature = b"PK\x05\x06"
+    if not tail.startswith(signature, classic) or tail[-2:] != b"\0\0":
+        classic = tail.rfind(signature)
+    if classic < 0 or classic + footer_size + footer[zipfile._ECD_COMMENT_SIZE] != len(tail):
         raise ValueError("ZIP footer extent disagrees with file size")
+    classic_offset = tail_offset + classic
     count = footer[zipfile._ECD_ENTRIES_TOTAL]
     if footer[zipfile._ECD_DISK_NUMBER] or footer[zipfile._ECD_DISK_START] or footer[zipfile._ECD_ENTRIES_THIS_DISK] != count:
         raise ValueError("ZIP disk or entry count is inconsistent")
@@ -23,7 +34,7 @@ def open_zip(stream):
         raise ValueError("ZIP directory exceeds resource limits")
     directory_size = footer[zipfile._ECD_SIZE]
     directory_end = footer[zipfile._ECD_LOCATION]
-    if footer[zipfile._ECD_SIGNATURE] == zipfile.stringEndArchive64:
+    if footer[zipfile._ECD_SIGNATURE] == zipfile.stringEndArchive64 and directory_end == classic_offset:
         directory_end -= zipfile.sizeEndCentDir64 + zipfile.sizeEndCentDir64Locator
     start = directory_end - directory_size
     if start < 0:

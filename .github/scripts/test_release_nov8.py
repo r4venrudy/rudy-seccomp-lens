@@ -39,7 +39,8 @@ class ReleaseStructureTests(unittest.TestCase):
             with patch.object(zipfile, "ZIP_FILECOUNT_LIMIT", 0):
                 zip64 = package()
             self.assertIn(b"PK\x06\x06", zip64)
-            for valid in (base, zip64, b"prefix" + base, b"prefix" + zip64):
+            commented_zip64 = zip64[:-2] + b"\x03\x00abc"
+            for valid in (base, zip64, commented_zip64, b"prefix" + base, b"prefix" + zip64):
                 path.write_bytes(valid)
                 self.assertEqual(verify(path), (1, 150000))
             count = bytearray(base)
