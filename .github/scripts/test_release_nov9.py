@@ -68,3 +68,12 @@ class ReleaseInventoryTests(unittest.TestCase):
             struct.pack_into("<I", invalid, offset, 2)
             with self.assertRaisesRegex(ValueError, "streamed ZIP local fields"):
                 self.verify(invalid)
+
+    def test_zip_budget_before_member_open(self):
+        data = fixture()
+        self.assertEqual(self.verify(data), (2, 6))
+        for budget, limit in (("MAX_MEMBER", 2), ("MAX_TOTAL", 5)):
+            with patch.object(release_guard, budget, limit):
+                with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("opened before ZIP budget")):
+                    with self.assertRaisesRegex(ValueError, "resource limits"):
+                        self.verify(data)
