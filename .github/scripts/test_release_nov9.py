@@ -54,3 +54,17 @@ class ReleaseInventoryTests(unittest.TestCase):
         for method in (zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA):
             with self.assertRaisesRegex(ValueError, "unsupported release ZIP compression"):
                 self.verify(fixture(method))
+
+    def test_streamed_local_fields(self):
+        data = fixture(streamed=True)
+        self.assertEqual(self.verify(data), (2, 6))
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            member = archive.infolist()[0]
+        populated = bytearray(data)
+        struct.pack_into("<III", populated, 14, member.CRC, member.compress_size, member.file_size)
+        self.assertEqual(self.verify(populated), (2, 6))
+        for offset in (14, 18, 22):
+            invalid = bytearray(data)
+            struct.pack_into("<I", invalid, offset, 2)
+            with self.assertRaisesRegex(ValueError, "streamed ZIP local fields"):
+                self.verify(invalid)

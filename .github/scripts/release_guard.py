@@ -119,6 +119,11 @@ def validate_zip_metadata(archive, member):
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
         if flags & 8:
+            crc, packed, size = struct.unpack_from("<III", header, 14)
+            if (crc not in (0, member.CRC)
+                    or packed not in (0, 0xFFFFFFFF, member.compress_size)
+                    or size not in (0, 0xFFFFFFFF, member.file_size)):
+                raise ValueError("streamed ZIP local fields disagree with central record")
             return
         crc, packed, size, name_length, extra_length = struct.unpack("<IIIHH", header[14:])
         if size == 0xFFFFFFFF or packed == 0xFFFFFFFF:
