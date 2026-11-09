@@ -170,6 +170,8 @@ def verify(path):
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             for member in archive.infolist():
+                if member.volume != 0:
+                    raise ValueError('ZIP member references another disk')
                 validate_zip_metadata(archive, member)
                 validate_descriptor(archive, member)
                 if member.compress_type == zipfile.ZIP_STORED and member.compress_size != member.file_size:

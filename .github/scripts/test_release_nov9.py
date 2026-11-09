@@ -1,0 +1,40 @@
+import io
+from pathlib import Path
+import struct
+from tempfile import TemporaryDirectory
+import unittest
+from unittest.mock import patch
+import zipfile
+
+import release_guard
+
+
+def fixture(compression=zipfile.ZIP_STORED, streamed=False):
+    class StreamOnly(io.BytesIO):
+        def seek(self, *args):
+            raise OSError("stream only")
+
+    buffer = StreamOnly() if streamed else io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=compression) as archive:
+        archive.writestr("first", b"abc")
+        archive.writestr("second", b"def")
+    return buffer.getvalue()
+
+
+class ReleaseInventoryTests(unittest.TestCase):
+    def setUp(self):
+        folder = TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.path = Path(folder.name) / "members.zip"
+
+    def verify(self, data):
+        self.path.write_bytes(data)
+        return release_guard.verify(self.path)
+
+    def test_member_disk(self):
+        data = bytearray(fixture())
+        self.assertEqual(self.verify(data), (2, 6))
+        central = data.index(b"PK\x01\x02")
+        struct.pack_into("<H", data, central + 34, 1)
+        with self.assertRaisesRegex(ValueError, "another disk"):
+            self.verify(data)
