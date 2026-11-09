@@ -47,3 +47,10 @@ class ReleaseInventoryTests(unittest.TestCase):
             struct.pack_into("<H", data, central + 8, flag)
             with self.assertRaisesRegex(ValueError, "encrypted release member"):
                 self.verify(data)
+
+    def test_bounded_release_zip_methods(self):
+        for method in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+            self.assertEqual(self.verify(fixture(method)), (2, 6))
+        for method in (zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA):
+            with self.assertRaisesRegex(ValueError, "unsupported release ZIP compression"):
+                self.verify(fixture(method))
