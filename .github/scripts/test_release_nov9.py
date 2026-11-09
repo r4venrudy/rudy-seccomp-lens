@@ -38,3 +38,12 @@ class ReleaseInventoryTests(unittest.TestCase):
         struct.pack_into("<H", data, central + 34, 1)
         with self.assertRaisesRegex(ValueError, "another disk"):
             self.verify(data)
+
+    def test_zip_encryption_flags(self):
+        for flag in (1 << 13, 1 << 6, 1):
+            data = bytearray(fixture())
+            central = data.index(b"PK\x01\x02")
+            struct.pack_into("<H", data, 6, flag)
+            struct.pack_into("<H", data, central + 8, flag)
+            with self.assertRaisesRegex(ValueError, "encrypted release member"):
+                self.verify(data)
