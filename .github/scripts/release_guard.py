@@ -1,5 +1,6 @@
 """Validate outer release packages without extracting files or following links."""
 import gzip
+import struct
 import lzma
 from pathlib import Path
 from release_zip import open_zip, validate_deflate, validate_descriptor
@@ -105,6 +106,17 @@ def verify_compression_envelope(path):
     return decoded
 
 
+def validate_zip_extra(data, record):
+    cursor = 0
+    while cursor < len(data):
+        if len(data) - cursor < 4:
+            raise ValueError(f"truncated {record} ZIP extra field header")
+        kind, length = struct.unpack_from("<HH", data, cursor)
+        cursor += 4 + length
+        if cursor > len(data):
+            raise ValueError(f"truncated {record} ZIP extra field payload")
+
+
 def validate_zip_metadata(archive, member):
     # ZipFile uses central metadata to decompress. Verify the corresponding
     # local record advertises the same flags and compression method.
@@ -114,10 +126,16 @@ def validate_zip_metadata(archive, member):
         header = archive.fp.read(30)
         if len(header) != 30 or header[:4] != b"PK\x03\x04":
             raise ValueError("invalid ZIP local metadata")
-        import struct
         _, flags, method = struct.unpack("<HHH", header[4:10])
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
+        name_size, extra_size = struct.unpack_from("<HH", header, 26)
+        archive.fp.seek(name_size, 1)
+        local_extra = archive.fp.read(extra_size)
+        if len(local_extra) != extra_size:
+            raise ValueError("truncated local ZIP extra field region")
+        validate_zip_extra(local_extra, "local")
+        archive.fp.seek(member.header_offset + 30)
         if flags & 8:
             crc, packed, size = struct.unpack_from("<III", header, 14)
             if (crc not in (0, member.CRC)
