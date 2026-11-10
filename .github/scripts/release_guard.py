@@ -108,6 +108,7 @@ def verify_compression_envelope(path):
 
 def validate_zip_extra(data, record):
     cursor = 0
+    structural = set()
     while cursor < len(data):
         if len(data) - cursor < 4:
             raise ValueError(f"truncated {record} ZIP extra field header")
@@ -115,6 +116,11 @@ def validate_zip_extra(data, record):
         cursor += 4 + length
         if cursor > len(data):
             raise ValueError(f"truncated {record} ZIP extra field payload")
+        # A record has only one ZIP64 structure and one Unicode path override.
+        if kind in (0x0001, 0x7075):
+            if kind in structural:
+                raise ValueError(f"duplicate {record} ZIP extra field: 0x{kind:04x}")
+            structural.add(kind)
 
 
 def validate_zip_metadata(archive, member):
