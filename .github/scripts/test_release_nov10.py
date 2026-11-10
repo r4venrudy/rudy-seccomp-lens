@@ -32,3 +32,11 @@ class ZipExtraFieldTests(unittest.TestCase):
             struct.pack_into("<H", data, 30 + len("note") + 2, length)
             with self.assertRaisesRegex(ValueError, "local ZIP extra field"):
                 self.verify(data)
+
+    def test_central_extra_framing(self):
+        base = fixture(struct.pack("<HHB", 0xcafe, 1, 42))
+        self.assertEqual(self.verify(base), (1, 3))
+        central = base.index(b"PK\x01\x02")
+        struct.pack_into("<H", base, central + 46 + len("note") + 2, 0)
+        with self.assertRaisesRegex(ValueError, "central ZIP extra field"):
+            self.verify(base)
