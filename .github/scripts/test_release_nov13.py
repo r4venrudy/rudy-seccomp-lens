@@ -38,3 +38,8 @@ class PortablePathTests(unittest.TestCase):
             for char in ("\u0080", "\u0085", "\u009f"):
                 with self.assertRaisesRegex(ValueError, "unsafe release member name"):
                     check("data/a" + char + ".txt")
+
+    def test_tar_filename_requires_unicode(self):
+        self.assertEqual(self.check_tar("data/\u00ff.txt"), (1, 7))
+        with self.assertRaisesRegex(ValueError, "invalid Unicode in release member name"):
+            self.check_tar("data/\udcff.txt")

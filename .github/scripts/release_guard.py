@@ -20,12 +20,14 @@ def validate_paths(records):
         if name in ('.','./') and directory:continue
         if not name or name.startswith('/') or '\\' in name or ':' in name or any(unicodedata.category(c)=='Cc' for c in name):raise ValueError('unsafe release member name')
         if '..' in PurePosixPath(name).parts:raise ValueError('parent traversal in release')
+        if any(unicodedata.category(c)=='Cs' for c in name):
+            raise ValueError('invalid Unicode in release member name')
         normalized=posixpath.normpath(name).rstrip('/')
         if normalized in ('','.','..'):raise ValueError('empty release member')
         parts=normalized.split('/')
-        if len(name.encode('utf-8', errors='surrogatepass')) > 4096 or len(parts) > 128:
+        if len(name.encode('utf-8')) > 4096 or len(parts) > 128:
             raise ValueError('release member exceeds path budget')
-        if any(len(part.encode('utf-8', errors='surrogatepass')) > 255 for part in parts):
+        if any(len(part.encode('utf-8')) > 255 for part in parts):
             raise ValueError('release path component exceeds 255 UTF-8 bytes')
         if any(character in '<>"|?*' for character in name):
             raise ValueError('nonportable Windows member name')
