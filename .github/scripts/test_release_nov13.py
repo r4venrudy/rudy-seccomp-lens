@@ -43,3 +43,10 @@ class PortablePathTests(unittest.TestCase):
         self.assertEqual(self.check_tar("data/\u00ff.txt"), (1, 7))
         with self.assertRaisesRegex(ValueError, "invalid Unicode in release member name"):
             self.check_tar("data/\udcff.txt")
+
+    def test_zip_paths_use_canonical_components(self):
+        self.assertEqual(self.check_zip("dir/item"), (1, 7))
+        self.assertEqual(self.check_tar("./dir/item"), (1, 7))
+        for name in ("./item", "dir/./item", "dir//item"):
+            with self.assertRaisesRegex(ValueError, "noncanonical ZIP member path"):
+                self.check_zip(name)

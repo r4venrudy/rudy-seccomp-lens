@@ -205,6 +205,10 @@ def verify(path):
                     or sum(member.file_size for member in members) > MAX_TOTAL):
                 raise ValueError('release archive exceeds resource limits')
             for member in members:
+                name = member.orig_filename
+                path_text = name[:-1] if member.is_dir() else name
+                if not name.startswith('/') and any(part in ('', '.') for part in path_text.split('/')):
+                    raise ValueError('noncanonical ZIP member path')
                 validate_zip_extra(member.extra, "central")
                 if member.volume != 0:
                     raise ValueError('ZIP member references another disk')
