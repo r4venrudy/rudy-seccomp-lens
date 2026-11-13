@@ -29,7 +29,7 @@ def validate_paths(records):
             raise ValueError('release path component exceeds 255 UTF-8 bytes')
         if any(character in '<>"|?*' for character in name):
             raise ValueError('nonportable Windows member name')
-        devices={'con','prn','aux','nul'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
+        devices={'con','prn','aux','nul','conin$','conout$'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
         devices |= {prefix+digit for prefix in ('com','lpt') for digit in '\u00b9\u00b2\u00b3'}
         if any(p.endswith(('.', ' ')) or p.split('.')[0].casefold() in devices for p in parts):raise ValueError('nonportable Windows member name')
         key=unicodedata.normalize('NFC',normalized).casefold()
