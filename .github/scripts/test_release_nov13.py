@@ -31,3 +31,10 @@ class PortablePathTests(unittest.TestCase):
             for name in ("CONIN$", "nested/ConOut$.txt"):
                 with self.assertRaisesRegex(ValueError, "nonportable Windows member name"):
                     check(name)
+
+    def test_c1_control_names(self):
+        for check in (self.check_tar, self.check_zip):
+            self.assertEqual(check("data/\u00a1.txt"), (1, 7))
+            for char in ("\u0080", "\u0085", "\u009f"):
+                with self.assertRaisesRegex(ValueError, "unsafe release member name"):
+                    check("data/a" + char + ".txt")

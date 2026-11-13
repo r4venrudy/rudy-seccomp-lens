@@ -18,7 +18,7 @@ def validate_paths(records):
     for name,directory,linked,special in records:
         if linked or special:raise ValueError('link or special file in portable release')
         if name in ('.','./') and directory:continue
-        if not name or name.startswith('/') or '\\' in name or ':' in name or any(ord(c)<32 or ord(c)==127 for c in name):raise ValueError('unsafe release member name')
+        if not name or name.startswith('/') or '\\' in name or ':' in name or any(unicodedata.category(c)=='Cc' for c in name):raise ValueError('unsafe release member name')
         if '..' in PurePosixPath(name).parts:raise ValueError('parent traversal in release')
         normalized=posixpath.normpath(name).rstrip('/')
         if normalized in ('','.','..'):raise ValueError('empty release member')
