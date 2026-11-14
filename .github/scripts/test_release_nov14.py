@@ -41,3 +41,9 @@ class ManifestBoundaryTests(unittest.TestCase):
         with patch.object(guard, "MAX_ASSET_NAME", 7, create=True):
             with self.assertRaisesRegex(ValueError, "archive name is too long"):
                 guard.verify_checksums(path)
+
+    def test_manifest_rejects_device_names(self):
+        path = self.stage()
+        self.manifest(path, [("LPT2.zip", b"fixture")])
+        with self.assertRaisesRegex(ValueError, "reserved Windows device"):
+            guard.verify_checksums(path)

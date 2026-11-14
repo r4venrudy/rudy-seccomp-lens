@@ -9,6 +9,9 @@ MAX_MANIFEST_ROWS = 4096
 MAX_ASSET_NAME = 255
 MAX_ASSET = 512 * 1024 * 1024
 MAX_CHECKSUM_TOTAL = 2 * 1024 * 1024 * 1024
+RESERVED_DEVICES = {"con", "prn", "aux", "nul", "conin$", "conout$"} | {
+    f"{prefix}{number}" for prefix in ("com", "lpt") for number in range(1, 10)
+}
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
 
 
@@ -36,6 +39,9 @@ def verify_checksums(directory: Path) -> None:
         if not match:
             raise ValueError(f"invalid SHA-256 manifest row {index}")
         expected, name = match.groups()
+        stem = name.split(".", 1)[0].lower()
+        if stem in RESERVED_DEVICES:
+            raise ValueError(f"release archive uses a reserved Windows device: {name}")
         if len(name) > MAX_ASSET_NAME:
             raise ValueError(f"release archive name is too long: {name}")
         key = name.lower()
