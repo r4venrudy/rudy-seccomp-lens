@@ -59,6 +59,8 @@ def verify_checksums(directory: Path) -> None:
         if asset.is_symlink() or not asset.is_file():
             raise ValueError(f"expected a regular release archive for {name}")
         size = asset.stat().st_size
+        if size == 0:
+            raise ValueError(f"release archive is empty: {name}")
         if size > MAX_ASSET:
             raise ValueError(f"release archive exceeds checksum limit: {name}")
         total_bytes += size

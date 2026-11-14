@@ -30,3 +30,8 @@ class ManifestBoundaryTests(unittest.TestCase):
         with patch.object(guard, "MAX_MANIFEST_ROWS", 0, create=True):
             with self.assertRaisesRegex(ValueError, "manifest has too many rows"):
                 guard.verify_checksums(path)
+
+    def test_empty_asset(self):
+        path = self.prepare(data=b"")
+        with self.assertRaisesRegex(ValueError, "release archive is empty"):
+            guard.verify_checksums(path)
