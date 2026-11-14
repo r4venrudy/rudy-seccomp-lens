@@ -5,6 +5,7 @@ import re
 ARCHIVE_SUFFIXES = (".zip", ".jar", ".nupkg", ".whl", ".tar.gz", ".tgz", ".tar.xz")
 MANIFEST_NAMES = ("SHA256SUMS", "SHA256SUMS.txt")
 MAX_MANIFEST = 1024 * 1024
+MAX_MANIFEST_ROWS = 4096
 MAX_ASSET = 512 * 1024 * 1024
 MAX_CHECKSUM_TOTAL = 2 * 1024 * 1024 * 1024
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
@@ -27,6 +28,8 @@ def verify_checksums(directory: Path) -> None:
     total_bytes = 0
     text = contents.decode("ascii").replace("\r\n", "\n")
     rows = text.removesuffix("\n").split("\n")
+    if len(rows) > MAX_MANIFEST_ROWS:
+        raise ValueError("SHA-256 manifest has too many rows")
     for index, row in enumerate(rows, 1):
         match = ROW.fullmatch(row)
         if not match:
