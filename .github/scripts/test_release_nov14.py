@@ -47,3 +47,10 @@ class ManifestBoundaryTests(unittest.TestCase):
         self.manifest(path, [("LPT2.zip", b"fixture")])
         with self.assertRaisesRegex(ValueError, "reserved Windows device"):
             guard.verify_checksums(path)
+
+    def test_stage_entry_limit(self):
+        path = self.prepare()
+        (path / "extra.txt").write_bytes(b"sidecar")
+        with patch.object(guard, "MAX_STAGE_ENTRIES", 2, create=True):
+            with self.assertRaisesRegex(ValueError, "staging directory has too many entries"):
+                guard.verify_checksums(path)

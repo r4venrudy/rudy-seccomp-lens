@@ -7,12 +7,23 @@ MANIFEST_NAMES = ("SHA256SUMS", "SHA256SUMS.txt")
 MAX_MANIFEST = 1024 * 1024
 MAX_MANIFEST_ROWS = 4096
 MAX_ASSET_NAME = 255
+MAX_STAGE_ENTRIES = 8192
 MAX_ASSET = 512 * 1024 * 1024
 MAX_CHECKSUM_TOTAL = 2 * 1024 * 1024 * 1024
 RESERVED_DEVICES = {"con", "prn", "aux", "nul", "conin$", "conout$"} | {
     f"{prefix}{number}" for prefix in ("com", "lpt") for number in range(1, 10)
 }
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
+
+
+def staged_archives(directory: Path) -> set[str]:
+    names = set()
+    for count, entry in enumerate(directory.iterdir(), 1):
+        if count > MAX_STAGE_ENTRIES:
+            raise ValueError("release staging directory has too many entries")
+        if entry.name.lower().endswith(ARCHIVE_SUFFIXES):
+            names.add(entry.name)
+    return names
 
 
 def verify_checksums(directory: Path) -> None:
@@ -54,8 +65,7 @@ def verify_checksums(directory: Path) -> None:
             raise ValueError(f"expected a regular release archive for {name}")
         entries.append((name, expected))
 
-    staged = {entry.name for entry in directory.iterdir()
-              if entry.name.lower().endswith(ARCHIVE_SUFFIXES)}
+    staged = staged_archives(directory)
     unlisted = staged - listed
     if unlisted:
         raise ValueError(f"unlisted release archives: {', '.join(sorted(unlisted))}")
