@@ -6,6 +6,7 @@ ARCHIVE_SUFFIXES = (".zip", ".jar", ".nupkg", ".whl", ".tar.gz", ".tgz", ".tar.x
 MANIFEST_NAMES = ("SHA256SUMS", "SHA256SUMS.txt")
 MAX_MANIFEST = 1024 * 1024
 MAX_MANIFEST_ROWS = 4096
+MAX_ASSET_NAME = 255
 MAX_ASSET = 512 * 1024 * 1024
 MAX_CHECKSUM_TOTAL = 2 * 1024 * 1024 * 1024
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
@@ -35,6 +36,8 @@ def verify_checksums(directory: Path) -> None:
         if not match:
             raise ValueError(f"invalid SHA-256 manifest row {index}")
         expected, name = match.groups()
+        if len(name) > MAX_ASSET_NAME:
+            raise ValueError(f"release archive name is too long: {name}")
         key = name.lower()
         if key in seen:
             raise ValueError(f"duplicate SHA-256 entry for {name}")

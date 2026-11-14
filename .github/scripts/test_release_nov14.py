@@ -35,3 +35,9 @@ class ManifestBoundaryTests(unittest.TestCase):
         path = self.prepare(data=b"")
         with self.assertRaisesRegex(ValueError, "release archive is empty"):
             guard.verify_checksums(path)
+
+    def test_manifest_filename_limit(self):
+        path = self.prepare()
+        with patch.object(guard, "MAX_ASSET_NAME", 7, create=True):
+            with self.assertRaisesRegex(ValueError, "archive name is too long"):
+                guard.verify_checksums(path)
