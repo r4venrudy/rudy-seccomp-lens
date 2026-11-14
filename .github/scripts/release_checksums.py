@@ -101,6 +101,8 @@ def verify_checksums(directory: Path) -> None:
         digest = hasher.hexdigest()
         if digest != expected.lower():
             raise ValueError(f"SHA-256 mismatch for {name}")
+    if staged_archives(directory) != staged:
+        raise ValueError("staged archive inventory changed while hashing")
 
 
 if __name__ == "__main__":

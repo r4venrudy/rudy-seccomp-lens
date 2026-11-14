@@ -54,3 +54,16 @@ class ManifestBoundaryTests(unittest.TestCase):
         with patch.object(guard, "MAX_STAGE_ENTRIES", 2, create=True):
             with self.assertRaisesRegex(ValueError, "staging directory has too many entries"):
                 guard.verify_checksums(path)
+
+    def test_stage_inventory_changes_while_hashing(self):
+        path = self.prepare()
+        original = Path.open
+
+        def opened(file, *args, **kwargs):
+            if file.name == "demo.zip":
+                (path / "late.zip").write_bytes(b"late arrival")
+            return original(file, *args, **kwargs)
+
+        with patch.object(Path, "open", opened):
+            with self.assertRaisesRegex(ValueError, "staged archive inventory changed"):
+                guard.verify_checksums(path)
