@@ -78,3 +78,24 @@ class StagingTests(unittest.TestCase):
         with patch.object(Path, "open", open_file):
             with self.assertRaisesRegex(ValueError, "release asset changed while hashing"):
                 guard.verify_checksums(self.folder)
+
+    def test_in_place_archive_edit_detected_after_read(self):
+        real_fstat = os.fstat
+        identity = self.asset.lstat()
+        calls = 0
+
+        def changed_stats(fd):
+            nonlocal calls
+            info = real_fstat(fd)
+            if (info.st_dev, info.st_ino) == (identity.st_dev, identity.st_ino):
+                calls += 1
+                if calls == 2:
+                    fields = {name: getattr(info, name) for name in
+                              ("st_dev", "st_ino", "st_mode", "st_size", "st_ctime_ns", "st_mtime_ns")}
+                    fields["st_mtime_ns"] += 1_000_000
+                    return SimpleNamespace(**fields)
+            return info
+
+        with patch.object(os, "fstat", changed_stats):
+            with self.assertRaisesRegex(ValueError, "release asset changed while hashing"):
+                guard.verify_checksums(self.folder)

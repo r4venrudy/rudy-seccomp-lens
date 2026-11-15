@@ -118,6 +118,8 @@ def verify_checksums(directory: Path) -> None:
                     raise ValueError(f"release asset changed while hashing: {name}")
                 hasher.update(chunk)
                 remaining -= len(chunk)
+            if not same_snapshot(info, os.fstat(stream.fileno())):
+                raise ValueError(f"release asset changed while hashing: {name}")
         if remaining:
             raise ValueError(f"release asset changed while hashing: {name}")
         digest = hasher.hexdigest()
