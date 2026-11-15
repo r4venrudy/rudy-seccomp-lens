@@ -39,3 +39,16 @@ class StagingTests(unittest.TestCase):
         renamed.rename(self.folder / "sha256sums")
         with self.assertRaisesRegex(ValueError, "manifest spelling"):
             guard.verify_checksums(self.folder)
+
+    def test_manifest_replaced_before_open(self):
+        replacement = self.copy(self.manifest)
+        real_open = Path.open
+
+        def open_file(path, *args, **kwargs):
+            if path == self.manifest:
+                replacement.replace(path)
+            return real_open(path, *args, **kwargs)
+
+        with patch.object(Path, "open", open_file):
+            with self.assertRaisesRegex(ValueError, "manifest changed"):
+                guard.verify_checksums(self.folder)

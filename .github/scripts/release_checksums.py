@@ -2,6 +2,7 @@ from pathlib import Path
 import hashlib
 import os
 import re
+import stat
 
 ARCHIVE_SUFFIXES = (".zip", ".jar", ".nupkg", ".whl", ".tar.gz", ".tgz", ".tar.xz")
 MANIFEST_NAMES = ("SHA256SUMS", "SHA256SUMS.txt")
@@ -33,13 +34,25 @@ def staged_inventory(directory: Path) -> tuple[set[str], list[str]]:
     return names, manifests
 
 
+def same_snapshot(expected, actual) -> bool:
+    return (stat.S_ISREG(actual.st_mode)
+            and os.path.samestat(expected, actual)
+            and expected.st_size == actual.st_size
+            and expected.st_mtime_ns == actual.st_mtime_ns)
+
+
 def verify_checksums(directory: Path) -> None:
     staged, manifest_names = staged_inventory(directory)
-    manifests = [directory / name for name in manifest_names]
-    if len(manifests) != 1 or manifests[0].is_symlink() or not manifests[0].is_file():
+    if len(manifest_names) != 1:
+        raise ValueError("expected exactly one regular SHA-256 manifest")
+    manifest = directory / manifest_names[0]
+    manifest_info = manifest.lstat()
+    if not stat.S_ISREG(manifest_info.st_mode):
         raise ValueError("expected exactly one regular SHA-256 manifest")
 
-    with manifests[0].open("rb") as stream:
+    with manifest.open("rb") as stream:
+        if not same_snapshot(manifest_info, os.fstat(stream.fileno())):
+            raise ValueError("SHA-256 manifest changed while opening")
         contents = stream.read(MAX_MANIFEST + 1)
     if not contents or len(contents) > MAX_MANIFEST:
         raise ValueError("SHA-256 manifest is empty or oversized")
