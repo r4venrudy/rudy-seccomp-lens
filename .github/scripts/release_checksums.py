@@ -1,5 +1,6 @@
 from pathlib import Path
 import hashlib
+import os
 import re
 
 ARCHIVE_SUFFIXES = (".zip", ".jar", ".nupkg", ".whl", ".tar.gz", ".tgz", ".tar.xz")
@@ -18,11 +19,12 @@ ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
 
 def staged_archives(directory: Path) -> set[str]:
     names = set()
-    for count, entry in enumerate(directory.iterdir(), 1):
-        if count > MAX_STAGE_ENTRIES:
-            raise ValueError("release staging directory has too many entries")
-        if entry.name.lower().endswith(ARCHIVE_SUFFIXES):
-            names.add(entry.name)
+    with os.scandir(directory) as entries:
+        for count, entry in enumerate(entries, 1):
+            if count > MAX_STAGE_ENTRIES:
+                raise ValueError("release staging directory has too many entries")
+            if entry.name.lower().endswith(ARCHIVE_SUFFIXES):
+                names.add(entry.name)
     return names
 
 
