@@ -52,3 +52,16 @@ class StagingTests(unittest.TestCase):
         with patch.object(Path, "open", open_file):
             with self.assertRaisesRegex(ValueError, "manifest changed"):
                 guard.verify_checksums(self.folder)
+
+    def test_manifest_replaced_while_hashing(self):
+        replacement = self.copy(self.manifest)
+        real_open = Path.open
+
+        def open_file(path, *args, **kwargs):
+            if path == self.asset:
+                replacement.replace(self.manifest)
+            return real_open(path, *args, **kwargs)
+
+        with patch.object(Path, "open", open_file):
+            with self.assertRaisesRegex(ValueError, "manifest changed"):
+                guard.verify_checksums(self.folder)
