@@ -127,6 +127,9 @@ def verify_checksums(directory: Path) -> None:
             raise ValueError(f"SHA-256 mismatch for {name}")
     if staged_inventory(directory) != (staged, manifest_names):
         raise ValueError("staged archive inventory changed while hashing")
+    for asset, name, _, info in bounded_assets:
+        if not same_snapshot(info, asset.lstat()):
+            raise ValueError(f"release asset changed while hashing: {name}")
     if not same_snapshot(manifest_info, manifest.lstat()):
         raise ValueError("SHA-256 manifest changed while hashing")
 

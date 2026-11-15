@@ -99,3 +99,19 @@ class StagingTests(unittest.TestCase):
         with patch.object(os, "fstat", changed_stats):
             with self.assertRaisesRegex(ValueError, "release asset changed while hashing"):
                 guard.verify_checksums(self.folder)
+
+    def test_earlier_asset_replaced_during_later_hash(self):
+        second = self.folder / "second.zip"
+        second.write_bytes(b"more contents")
+        self.write_manifest([self.asset, second])
+        replacement = self.copy(self.asset)
+        real_open = Path.open
+
+        def open_file(path, *args, **kwargs):
+            if path == second:
+                replacement.replace(self.asset)
+            return real_open(path, *args, **kwargs)
+
+        with patch.object(Path, "open", open_file):
+            with self.assertRaisesRegex(ValueError, "release asset changed while hashing"):
+                guard.verify_checksums(self.folder)
