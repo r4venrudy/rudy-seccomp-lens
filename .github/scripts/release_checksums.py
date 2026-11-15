@@ -94,9 +94,10 @@ def verify_checksums(directory: Path) -> None:
     bounded_assets = []
     for name, expected in entries:
         asset = directory / name
-        if asset.is_symlink() or not asset.is_file():
+        info = asset.lstat()
+        if not stat.S_ISREG(info.st_mode):
             raise ValueError(f"expected a regular release archive for {name}")
-        size = asset.stat().st_size
+        size = info.st_size
         if size == 0:
             raise ValueError(f"release archive is empty: {name}")
         if size > MAX_ASSET:
@@ -104,12 +105,14 @@ def verify_checksums(directory: Path) -> None:
         total_bytes += size
         if total_bytes > MAX_CHECKSUM_TOTAL:
             raise ValueError("staged release exceeds the aggregate checksum limit")
-        bounded_assets.append((asset, name, expected, size))
+        bounded_assets.append((asset, name, expected, info))
 
-    for asset, name, expected, size in bounded_assets:
+    for asset, name, expected, info in bounded_assets:
         hasher = hashlib.sha256()
-        remaining = size
+        remaining = info.st_size
         with asset.open("rb") as stream:
+            if not same_snapshot(info, os.fstat(stream.fileno())):
+                raise ValueError(f"release asset changed while hashing: {name}")
             while chunk := stream.read(min(65536, remaining + 1)):
                 if len(chunk) > remaining:
                     raise ValueError(f"release asset changed while hashing: {name}")
