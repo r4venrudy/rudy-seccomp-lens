@@ -17,20 +17,25 @@ RESERVED_DEVICES = {"con", "prn", "aux", "nul", "conin$", "conout$"} | {
 ROW = re.compile(r"([0-9a-fA-F]{64}) [ *]([A-Za-z0-9][A-Za-z0-9._+-]*)")
 
 
-def staged_archives(directory: Path) -> set[str]:
+def staged_inventory(directory: Path) -> tuple[set[str], list[str]]:
     names = set()
+    manifests = []
     with os.scandir(directory) as entries:
         for count, entry in enumerate(entries, 1):
             if count > MAX_STAGE_ENTRIES:
                 raise ValueError("release staging directory has too many entries")
             if entry.name.lower().endswith(ARCHIVE_SUFFIXES):
                 names.add(entry.name)
-    return names
+            if entry.name.lower() in ("sha256sums", "sha256sums.txt"):
+                if entry.name not in MANIFEST_NAMES:
+                    raise ValueError("invalid SHA-256 manifest spelling")
+                manifests.append(entry.name)
+    return names, manifests
 
 
 def verify_checksums(directory: Path) -> None:
-    candidates = [directory / name for name in MANIFEST_NAMES]
-    manifests = [p for p in candidates if p.exists() or p.is_symlink()]
+    staged, manifest_names = staged_inventory(directory)
+    manifests = [directory / name for name in manifest_names]
     if len(manifests) != 1 or manifests[0].is_symlink() or not manifests[0].is_file():
         raise ValueError("expected exactly one regular SHA-256 manifest")
 
@@ -67,7 +72,6 @@ def verify_checksums(directory: Path) -> None:
             raise ValueError(f"expected a regular release archive for {name}")
         entries.append((name, expected))
 
-    staged = staged_archives(directory)
     unlisted = staged - listed
     if unlisted:
         raise ValueError(f"unlisted release archives: {', '.join(sorted(unlisted))}")
@@ -103,7 +107,7 @@ def verify_checksums(directory: Path) -> None:
         digest = hasher.hexdigest()
         if digest != expected.lower():
             raise ValueError(f"SHA-256 mismatch for {name}")
-    if staged_archives(directory) != staged:
+    if staged_inventory(directory) != (staged, manifest_names):
         raise ValueError("staged archive inventory changed while hashing")
 
 

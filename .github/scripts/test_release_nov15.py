@@ -32,3 +32,10 @@ class StagingTests(unittest.TestCase):
     def test_inventory_does_not_materialize_the_directory(self):
         with patch.object(Path, "iterdir", side_effect=AssertionError("eager directory listing")):
             guard.verify_checksums(self.folder)
+
+    def test_manifest_requires_canonical_case(self):
+        renamed = self.folder / "temporary-name"
+        self.manifest.rename(renamed)
+        renamed.rename(self.folder / "sha256sums")
+        with self.assertRaisesRegex(ValueError, "manifest spelling"):
+            guard.verify_checksums(self.folder)
