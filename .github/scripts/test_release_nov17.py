@@ -64,3 +64,8 @@ class ReleaseMetadataTests(unittest.TestCase):
             if size % 512:
                 with self.assertRaisesRegex(ValueError, "nonzero TAR member padding"):
                     self.tar(payload=b"x" * size, dirty_padding=True)
+
+    def test_dos_zip_volume_label(self):
+        self.assertEqual(self.zip(0, 0x20), (1, 7))
+        with self.assertRaisesRegex(ValueError, "ZIP volume label"):
+            self.zip(0, 0x08)

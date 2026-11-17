@@ -222,6 +222,8 @@ def verify(path):
                     raise ValueError('unsupported release ZIP compression')
                 unix_mode = member.external_attr >> 16 if member.create_system in (3, 19) else 0
                 kind = stat.S_IFMT(unix_mode)
+                if member.create_system in (0, 14) and member.external_attr & 0x08:
+                    raise ValueError('ZIP volume label is outside the release profile')
                 if unix_mode & (stat.S_ISUID | stat.S_ISGID):
                     raise ValueError('privileged ZIP mode in portable release')
                 if member.is_dir() and (member.file_size or kind==stat.S_IFREG):
