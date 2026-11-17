@@ -250,6 +250,11 @@ def verify(path):
                 if member.isfile():
                     has_file_payload |= member.size>0
                     with archive.extractfile(member) as stream:consume(stream,member.size)
+                    padding_size = (-member.size) % tarfile.BLOCKSIZE
+                    if padding_size:
+                        archive.fileobj.seek(member.offset_data + member.size)
+                        if archive.fileobj.read(padding_size) != bytes(padding_size):
+                            raise ValueError('truncated or nonzero TAR member padding')
                 else:consume(None,0)
             validate_paths(records)
             archive.fileobj.seek(archive.offset)

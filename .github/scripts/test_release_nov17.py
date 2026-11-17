@@ -57,3 +57,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         for permission in (stat.S_ISUID, stat.S_ISGID):
             with self.assertRaisesRegex(ValueError, "privileged ZIP mode"):
                 self.zip(3, (mode | permission) << 16)
+
+    def test_tar_alignment_padding(self):
+        for size in (1, 511, 512, 513):
+            self.assertEqual(self.tar(payload=b"x" * size), (1, size))
+            if size % 512:
+                with self.assertRaisesRegex(ValueError, "nonzero TAR member padding"):
+                    self.tar(payload=b"x" * size, dirty_padding=True)
