@@ -237,6 +237,8 @@ def verify(path):
             for member in archive:
                 if member.sparse is not None:
                     raise ValueError('sparse TAR members are outside the release profile')
+                if member.isfile() and member.type not in (tarfile.REGTYPE, tarfile.AREGTYPE):
+                    raise ValueError('unsupported TAR file type')
                 if member.isdir() and member.size:
                     raise ValueError('TAR directory declares a payload')
                 records.append((member.name,member.isdir(),member.issym() or member.islnk(),not(member.isfile() or member.isdir() or member.issym() or member.islnk())))
