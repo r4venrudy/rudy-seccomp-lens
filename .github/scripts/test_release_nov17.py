@@ -44,3 +44,9 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual(self.tar(kind=tarfile.AREGTYPE), (1, 7))
         with self.assertRaisesRegex(ValueError, "unsupported TAR file type"):
             self.tar(kind=tarfile.CONTTYPE)
+
+    def test_privileged_tar_modes(self):
+        self.assertEqual(self.tar(mode=0o755), (1, 7))
+        for permission in (stat.S_ISUID, stat.S_ISGID):
+            with self.assertRaisesRegex(ValueError, "privileged TAR mode"):
+                self.tar(mode=0o755 | permission)
