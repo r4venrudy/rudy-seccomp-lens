@@ -50,3 +50,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         for permission in (stat.S_ISUID, stat.S_ISGID):
             with self.assertRaisesRegex(ValueError, "privileged TAR mode"):
                 self.tar(mode=0o755 | permission)
+
+    def test_privileged_zip_modes(self):
+        mode = stat.S_IFREG | 0o755
+        self.assertEqual(self.zip(3, mode << 16), (1, 7))
+        for permission in (stat.S_ISUID, stat.S_ISGID):
+            with self.assertRaisesRegex(ValueError, "privileged ZIP mode"):
+                self.zip(3, (mode | permission) << 16)

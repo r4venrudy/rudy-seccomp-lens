@@ -220,7 +220,10 @@ def verify(path):
                     raise ValueError('encrypted release member')
                 if member.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
                     raise ValueError('unsupported release ZIP compression')
-                kind=stat.S_IFMT(member.external_attr>>16) if member.create_system==3 else 0
+                unix_mode = member.external_attr >> 16 if member.create_system in (3, 19) else 0
+                kind = stat.S_IFMT(unix_mode)
+                if unix_mode & (stat.S_ISUID | stat.S_ISGID):
+                    raise ValueError('privileged ZIP mode in portable release')
                 if member.is_dir() and (member.file_size or kind==stat.S_IFREG):
                     raise ValueError('invalid ZIP directory payload or type')
                 dos_directory = member.create_system == 0 and bool(member.external_attr & 0x10)
