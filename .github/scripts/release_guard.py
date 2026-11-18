@@ -138,12 +138,13 @@ def validate_zip_metadata(archive, member):
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
         name_size, extra_size = struct.unpack_from("<HH", header, 26)
-        archive.fp.seek(name_size, 1)
+        encoding = "utf-8" if flags & (1 << 11) else "cp437"
+        if archive.fp.read(name_size) != member.orig_filename.encode(encoding):
+            raise ValueError("ZIP local filename disagrees with central record")
         local_extra = archive.fp.read(extra_size)
         if len(local_extra) != extra_size:
             raise ValueError("truncated local ZIP extra field region")
         validate_zip_extra(local_extra, "local")
-        archive.fp.seek(member.header_offset + 30)
         if flags & 8:
             crc, packed, size = struct.unpack_from("<III", header, 14)
             if (crc not in (0, member.CRC)
@@ -151,10 +152,9 @@ def validate_zip_metadata(archive, member):
                     or size not in (0, 0xFFFFFFFF, member.file_size)):
                 raise ValueError("streamed ZIP local fields disagree with central record")
             return
-        crc, packed, size, name_length, extra_length = struct.unpack("<IIIHH", header[14:])
+        crc, packed, size = struct.unpack_from("<III", header, 14)
         if size == 0xFFFFFFFF or packed == 0xFFFFFFFF:
-            archive.fp.seek(name_length, 1)
-            extra = archive.fp.read(extra_length)
+            extra = local_extra
             cursor = 0
             while cursor + 4 <= len(extra):
                 kind, length = struct.unpack_from("<HH", extra, cursor)

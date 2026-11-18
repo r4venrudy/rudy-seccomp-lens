@@ -48,3 +48,11 @@ class ZipFramingTests(unittest.TestCase):
         with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("payload opened early")):
             with self.assertRaisesRegex(ValueError, "another disk"):
                 self.verify(data)
+
+    def test_local_filename_checked_before_open(self):
+        data = zip_bytes(("caf\u00e9",))
+        self.assertEqual(self.verify(data), (1, 6))
+        data[30] = ord("d")
+        with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("payload opened early")):
+            with self.assertRaisesRegex(ValueError, "ZIP local filename"):
+                self.verify(data)
