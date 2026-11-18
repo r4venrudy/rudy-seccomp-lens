@@ -134,9 +134,12 @@ def validate_zip_metadata(archive, member):
         header = archive.fp.read(30)
         if len(header) != 30 or header[:4] != b"PK\x03\x04":
             raise ValueError("invalid ZIP local metadata")
-        _, flags, method = struct.unpack("<HHH", header[4:10])
+        version, _, flags, method = struct.unpack_from("<BBHH", header, 4)
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
+        minimum = 20 if method == zipfile.ZIP_DEFLATED else 10
+        if min(version, member.extract_version) < minimum:
+            raise ValueError("ZIP extraction version is below the member's feature minimum")
         name_size, extra_size = struct.unpack_from("<HH", header, 26)
         payload_end = member.header_offset + 30 + name_size + extra_size + member.compress_size
         if not flags & 8 and payload_end != member._end_offset:

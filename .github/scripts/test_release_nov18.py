@@ -94,3 +94,25 @@ class ZipFramingTests(unittest.TestCase):
         struct.pack_into("<I", data, central + 42, 0)
         with self.assertRaisesRegex(ValueError, "duplicate ZIP local header offset"):
             self.verify(data)
+
+    def test_zip_required_version_floor(self):
+        for compression, version in ((zipfile.ZIP_STORED, 10), (zipfile.ZIP_DEFLATED, 20)):
+            data = zip_bytes(compression=compression)
+            central = data.index(b"PK\x01\x02")
+            struct.pack_into("<H", data, 4, version)
+            struct.pack_into("<H", data, central + 6, version)
+            self.assertEqual(self.verify(data), (1, 6))
+            for offset in (4, central + 6):
+                bad = bytearray(data)
+                struct.pack_into("<H", bad, offset, version - 1)
+                with self.assertRaisesRegex(ValueError, "ZIP extraction version"):
+                    self.verify(bad)
+
+    def test_accepts_version_10_for_stored_directories(self):
+        buffer = BytesIO()
+        directory = zipfile.ZipInfo("data/")
+        directory.extract_version = 10
+        with zipfile.ZipFile(buffer, "w") as package:
+            package.writestr(directory, b"")
+            package.writestr("data/item", b"sample")
+        self.assertEqual(self.verify(buffer.getvalue()), (2, 6))
