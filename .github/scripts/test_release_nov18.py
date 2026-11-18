@@ -86,3 +86,11 @@ class ZipFramingTests(unittest.TestCase):
         put_gap_before_directory(data)
         with self.assertRaisesRegex(ValueError, "ZIP data descriptor"):
             self.verify(data)
+
+    def test_local_record_offsets_are_unique(self):
+        data = zip_bytes(("first", "second"))
+        self.assertEqual(self.verify(data), (2, 12))
+        central = data.rindex(b"PK\x01\x02")
+        struct.pack_into("<I", data, central + 42, 0)
+        with self.assertRaisesRegex(ValueError, "duplicate ZIP local header offset"):
+            self.verify(data)

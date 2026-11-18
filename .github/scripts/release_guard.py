@@ -204,6 +204,8 @@ def verify(path):
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
             members = archive.infolist()
+            if len({member.header_offset for member in members}) != len(members):
+                raise ValueError('duplicate ZIP local header offset')
             if (any(member.file_size < 0 or member.file_size > MAX_MEMBER for member in members)
                     or sum(member.file_size for member in members) > MAX_TOTAL):
                 raise ValueError('release archive exceeds resource limits')
