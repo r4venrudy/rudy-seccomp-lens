@@ -231,6 +231,7 @@ def verify(path):
                 dos_directory = member.create_system == 0 and bool(member.external_attr & 0x10)
                 if not member.is_dir() and (kind == stat.S_IFDIR or dos_directory):
                     raise ValueError('ZIP directory lacks a trailing slash')
+            for member in members:
                 has_file_payload |= not member.is_dir() and member.file_size>0
                 with archive.open(member) as stream:consume(stream,member.file_size)
                 if member.compress_type == zipfile.ZIP_DEFLATED:
