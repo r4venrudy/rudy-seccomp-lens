@@ -56,3 +56,19 @@ class ZipFramingTests(unittest.TestCase):
         with patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("payload opened early")):
             with self.assertRaisesRegex(ValueError, "ZIP local filename"):
                 self.verify(data)
+
+    def test_only_portable_zip_flags(self):
+        for compression, flag, valid in (
+            (zipfile.ZIP_STORED, 0x0002, False),
+            (zipfile.ZIP_DEFLATED, 0x0006, True),
+            (zipfile.ZIP_STORED, 0x0800, True),
+            (zipfile.ZIP_DEFLATED, 0x1000, False),
+        ):
+            data = zip_bytes(compression=compression)
+            struct.pack_into("<H", data, 6, flag)
+            struct.pack_into("<H", data, data.index(b"PK\x01\x02") + 8, flag)
+            if valid:
+                self.assertEqual(self.verify(data), (1, 6))
+            else:
+                with self.assertRaisesRegex(ValueError, "ZIP general-purpose flags"):
+                    self.verify(data)

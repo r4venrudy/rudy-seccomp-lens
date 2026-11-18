@@ -220,6 +220,11 @@ def verify(path):
                     raise ValueError('encrypted release member')
                 if member.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
                     raise ValueError('unsupported release ZIP compression')
+                supported_flags = (1 << 3) | (1 << 11)  # descriptor and UTF-8 name
+                if member.compress_type == zipfile.ZIP_DEFLATED:
+                    supported_flags |= (1 << 1) | (1 << 2)
+                if member.flag_bits & ~supported_flags:
+                    raise ValueError('unsupported ZIP general-purpose flags')
                 unix_mode = member.external_attr >> 16 if member.create_system in (3, 19) else 0
                 kind = stat.S_IFMT(unix_mode)
                 if member.create_system in (0, 14) and member.external_attr & 0x08:
