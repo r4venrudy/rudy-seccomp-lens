@@ -138,6 +138,9 @@ def validate_zip_metadata(archive, member):
         if flags != member.flag_bits or method != member.compress_type:
             raise ValueError("ZIP local metadata disagrees with central record")
         name_size, extra_size = struct.unpack_from("<HH", header, 26)
+        payload_end = member.header_offset + 30 + name_size + extra_size + member.compress_size
+        if not flags & 8 and payload_end != member._end_offset:
+            raise ValueError("ZIP local payload extent disagrees with record boundary")
         encoding = "utf-8" if flags & (1 << 11) else "cp437"
         if archive.fp.read(name_size) != member.orig_filename.encode(encoding):
             raise ValueError("ZIP local filename disagrees with central record")

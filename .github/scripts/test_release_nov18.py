@@ -72,3 +72,10 @@ class ZipFramingTests(unittest.TestCase):
             else:
                 with self.assertRaisesRegex(ValueError, "ZIP general-purpose flags"):
                     self.verify(data)
+
+    def test_nonstreamed_local_record_extent(self):
+        data = zip_bytes()
+        self.assertEqual(self.verify(data), (1, 6))
+        put_gap_before_directory(data)
+        with self.assertRaisesRegex(ValueError, "ZIP local payload extent"):
+            self.verify(data)
