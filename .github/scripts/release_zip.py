@@ -84,7 +84,7 @@ def validate_descriptor(archive, member):
         struct.unpack_from(layout, trailer, offset) == expected
         for layout in widths
         for offset in offsets
-        if len(trailer) >= offset + struct.calcsize(layout)
+        if remaining == offset + struct.calcsize(layout) and len(trailer) == remaining
     )
     if matches != 1:
         raise ValueError("ZIP data descriptor disagrees with central record")

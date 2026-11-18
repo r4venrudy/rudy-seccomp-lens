@@ -79,3 +79,10 @@ class ZipFramingTests(unittest.TestCase):
         put_gap_before_directory(data)
         with self.assertRaisesRegex(ValueError, "ZIP local payload extent"):
             self.verify(data)
+
+    def test_streamed_local_record_extent(self):
+        data = zip_bytes(streamed=True)
+        self.assertEqual(self.verify(data), (1, 6))
+        put_gap_before_directory(data)
+        with self.assertRaisesRegex(ValueError, "ZIP data descriptor"):
+            self.verify(data)
