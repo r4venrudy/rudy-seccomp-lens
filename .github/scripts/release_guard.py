@@ -187,6 +187,7 @@ def validate_zip_metadata(archive, member):
 
 MAX_TAR_EXTENSION_BYTES = 1024 * 1024
 MAX_TAR_EXTENSION_TOTAL = 16 * 1024 * 1024
+MAX_TAR_EXTENSION_DEPTH = 32
 TAR_EXTENSION_TYPES = (
     tarfile.XHDTYPE, tarfile.XGLTYPE, tarfile.SOLARIS_XHDTYPE,
     tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK,
@@ -207,6 +208,14 @@ class ReleaseTarInfo(tarfile.TarInfo):
             if total > MAX_TAR_EXTENSION_TOTAL:
                 raise ValueError("TAR extension metadata exceeds the aggregate limit")
             archive._release_extension_bytes = total
+            depth = getattr(archive, "_release_extension_depth", 0)
+            if depth >= MAX_TAR_EXTENSION_DEPTH:
+                raise ValueError("TAR extension nesting exceeds the recursion limit")
+            archive._release_extension_depth = depth + 1
+            try:
+                return super()._proc_member(archive)
+            finally:
+                archive._release_extension_depth = depth
         return super()._proc_member(archive)
 
     def _proc_gnusparse_00(self, member, raw_headers):

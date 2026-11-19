@@ -82,3 +82,11 @@ class TarMetadataLimits(unittest.TestCase):
         with patch.object(guard, "MAX_TAR_EXTENSION_TOTAL", len(extension) * 2 - 1, create=True):
             with self.assertRaisesRegex(ValueError, "TAR extension metadata exceeds"):
                 self.verify(data)
+
+    def test_extension_recursion_budget(self):
+        extension = record("extension", pax(), tarfile.XHDTYPE)
+        with patch.object(guard, "MAX_TAR_EXTENSION_DEPTH", 2, create=True):
+            self.assertEqual(self.verify(extension * 2 + record("payload")), (1, 7))
+            self.assertEqual(self.verify(extension + record("one") + extension + record("two")), (2, 14))
+            with self.assertRaisesRegex(ValueError, "TAR extension nesting exceeds"):
+                self.verify(extension * 3 + record("payload"))
