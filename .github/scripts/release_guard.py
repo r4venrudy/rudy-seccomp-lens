@@ -186,6 +186,7 @@ def validate_zip_metadata(archive, member):
         archive.fp.seek(position)
 
 MAX_TAR_EXTENSION_BYTES = 1024 * 1024
+MAX_TAR_EXTENSION_TOTAL = 16 * 1024 * 1024
 TAR_EXTENSION_TYPES = (
     tarfile.XHDTYPE, tarfile.XGLTYPE, tarfile.SOLARIS_XHDTYPE,
     tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK,
@@ -201,6 +202,11 @@ class ReleaseTarInfo(tarfile.TarInfo):
         if self.type in TAR_EXTENSION_TYPES:
             if self.size < 0 or self.size > MAX_TAR_EXTENSION_BYTES:
                 raise ValueError("TAR extension exceeds the metadata limit")
+            padded = (self.size + tarfile.BLOCKSIZE - 1) // tarfile.BLOCKSIZE * tarfile.BLOCKSIZE
+            total = getattr(archive, "_release_extension_bytes", 0) + tarfile.BLOCKSIZE + padded
+            if total > MAX_TAR_EXTENSION_TOTAL:
+                raise ValueError("TAR extension metadata exceeds the aggregate limit")
+            archive._release_extension_bytes = total
         return super()._proc_member(archive)
 
     def _proc_gnusparse_00(self, member, raw_headers):
