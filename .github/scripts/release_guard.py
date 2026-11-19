@@ -193,6 +193,15 @@ class ReleaseTarInfo(tarfile.TarInfo):
             raise ValueError("sparse TAR members are outside the release profile")
         return super()._proc_member(archive)
 
+    def _proc_gnusparse_00(self, member, raw_headers):
+        raise ValueError("sparse TAR members are outside the release profile")
+
+    def _proc_gnusparse_01(self, member, pax_headers):
+        raise ValueError("sparse TAR members are outside the release profile")
+
+    def _proc_gnusparse_10(self, member, pax_headers, archive):
+        raise ValueError("sparse TAR members are outside the release profile")
+
 
 def verify(path):
     path=Path(path)
