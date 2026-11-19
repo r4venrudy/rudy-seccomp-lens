@@ -90,3 +90,20 @@ class TarMetadataLimits(unittest.TestCase):
             self.assertEqual(self.verify(extension + record("one") + extension + record("two")), (2, 14))
             with self.assertRaisesRegex(ValueError, "TAR extension nesting exceeds"):
                 self.verify(extension * 3 + record("payload"))
+
+    def test_tar_metadata_before_payloads(self):
+        cases = (
+            (record("first") + record("../second"), "parent traversal"),
+            (record("same") + record("same"), "duplicate"),
+            (record("first") + record("second"), "resource limits"),
+        )
+        for index, (data, message) in enumerate(cases):
+            if index == 2:
+                with patch.object(guard, "MAX_TOTAL", 10):
+                    with patch.object(tarfile.TarFile, "extractfile", side_effect=AssertionError("payload opened before TAR preflight")):
+                        with self.assertRaisesRegex(ValueError, message):
+                            self.verify(data)
+            else:
+                with patch.object(tarfile.TarFile, "extractfile", side_effect=AssertionError("payload opened before TAR preflight")):
+                    with self.assertRaisesRegex(ValueError, message):
+                        self.verify(data)

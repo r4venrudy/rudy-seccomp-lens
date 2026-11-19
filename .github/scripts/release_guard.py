@@ -296,6 +296,8 @@ def verify(path):
         decoded_size = verify_compression_envelope(path)
         with tarfile.open(path, tarinfo=ReleaseTarInfo) as archive:
             records=[]
+            members = []
+            declared_total = 0
             for member in archive:
                 if member.sparse is not None:
                     raise ValueError('sparse TAR members are outside the release profile')
@@ -306,6 +308,13 @@ def verify(path):
                 if member.isdir() and member.size:
                     raise ValueError('TAR directory declares a payload')
                 records.append((member.name,member.isdir(),member.issym() or member.islnk(),not(member.isfile() or member.isdir() or member.issym() or member.islnk())))
+                declared_total += member.size
+                if (len(members) >= MAX_ENTRIES or member.size < 0 or member.size > MAX_MEMBER
+                        or declared_total > MAX_TOTAL):
+                    raise ValueError('release archive exceeds resource limits')
+                members.append(member)
+            validate_paths(records)
+            for member in members:
                 if member.isfile():
                     has_file_payload |= member.size>0
                     with archive.extractfile(member) as stream:consume(stream,member.size)
@@ -315,7 +324,6 @@ def verify(path):
                         if archive.fileobj.read(padding_size) != bytes(padding_size):
                             raise ValueError('truncated or nonzero TAR member padding')
                 else:consume(None,0)
-            validate_paths(records)
             archive.fileobj.seek(archive.offset)
             if archive.fileobj.read(1024)!=bytes(1024):
                 raise ValueError('TAR end requires two zero records')
