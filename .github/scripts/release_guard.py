@@ -185,6 +185,15 @@ def validate_zip_metadata(archive, member):
     finally:
         archive.fp.seek(position)
 
+class ReleaseTarInfo(tarfile.TarInfo):
+    """Reject unsupported sparse records before the standard reader expands them."""
+
+    def _proc_member(self, archive):
+        if self.type == tarfile.GNUTYPE_SPARSE:
+            raise ValueError("sparse TAR members are outside the release profile")
+        return super()._proc_member(archive)
+
+
 def verify(path):
     path=Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size>MAX_ARCHIVE:raise ValueError('archive input is not a bounded regular file')
@@ -251,7 +260,7 @@ def verify(path):
                     validate_deflate(archive, member)
     elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
         decoded_size = verify_compression_envelope(path)
-        with tarfile.open(path) as archive:
+        with tarfile.open(path, tarinfo=ReleaseTarInfo) as archive:
             records=[]
             for member in archive:
                 if member.sparse is not None:
