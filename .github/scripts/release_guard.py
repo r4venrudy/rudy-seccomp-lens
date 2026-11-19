@@ -185,12 +185,22 @@ def validate_zip_metadata(archive, member):
     finally:
         archive.fp.seek(position)
 
+MAX_TAR_EXTENSION_BYTES = 1024 * 1024
+TAR_EXTENSION_TYPES = (
+    tarfile.XHDTYPE, tarfile.XGLTYPE, tarfile.SOLARIS_XHDTYPE,
+    tarfile.GNUTYPE_LONGNAME, tarfile.GNUTYPE_LONGLINK,
+)
+
+
 class ReleaseTarInfo(tarfile.TarInfo):
     """Reject unsupported sparse records before the standard reader expands them."""
 
     def _proc_member(self, archive):
         if self.type == tarfile.GNUTYPE_SPARSE:
             raise ValueError("sparse TAR members are outside the release profile")
+        if self.type in TAR_EXTENSION_TYPES:
+            if self.size < 0 or self.size > MAX_TAR_EXTENSION_BYTES:
+                raise ValueError("TAR extension exceeds the metadata limit")
         return super()._proc_member(archive)
 
     def _proc_gnusparse_00(self, member, raw_headers):

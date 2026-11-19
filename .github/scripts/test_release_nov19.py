@@ -58,3 +58,17 @@ class TarMetadataLimits(unittest.TestCase):
                 with patch.object(tarfile.TarInfo, method, side_effect=AssertionError("sparse decoder called")):
                     with self.assertRaisesRegex(ValueError, "sparse TAR members"):
                         self.verify(data, xz=xz)
+
+    def test_individual_extension_budget(self):
+        payload = pax(b"comment=" + b"a" * 70 + b"\n")
+        for kind, extension in ((tarfile.XHDTYPE, payload),
+                                (tarfile.XGLTYPE, payload),
+                                (tarfile.SOLARIS_XHDTYPE, payload),
+                                (tarfile.GNUTYPE_LONGNAME, b"long-" + b"a" * 70 + b"\0")):
+            data = record("extension", extension, kind) + record("payload")
+            self.assertEqual(self.verify(data), (1, 7))
+            with patch.object(guard, "MAX_TAR_EXTENSION_BYTES", len(extension), create=True):
+                self.assertEqual(self.verify(data), (1, 7))
+            with patch.object(guard, "MAX_TAR_EXTENSION_BYTES", len(extension) - 1, create=True):
+                with self.assertRaisesRegex(ValueError, "TAR extension exceeds"):
+                    self.verify(data)
