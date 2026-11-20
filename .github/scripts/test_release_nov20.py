@@ -64,3 +64,13 @@ class ReleaseInteroperability(unittest.TestCase):
             data[offset:offset + extra_size] = b"\x00\x00" + struct.pack("<H", extra_size - 4) + bytes(extra_size - 4)
             with self.assertRaises((ValueError, BadZipFile)):
                 self.verify_zip(data)
+
+    def test_zip64_feature_version(self):
+        data = self.zip_bytes(force64=True)
+        self.assertEqual(self.verify_zip(data), (1, 7))
+        for local, central in ((20, 45), (45, 20), (20, 20)):
+            changed = bytearray(data)
+            changed[4] = local
+            changed[changed.index(b"PK\x01\x02") + 6] = central
+            with self.assertRaisesRegex(ValueError, "ZIP64 extraction version"):
+                self.verify_zip(changed)

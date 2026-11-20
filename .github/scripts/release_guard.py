@@ -165,6 +165,15 @@ def validate_zip_metadata(archive, member):
         if len(local_extra) != extra_size:
             raise ValueError("truncated local ZIP extra field region")
         validate_zip_extra(local_extra, "local", member.orig_filename, flags)
+        zip64 = False
+        for extra in (local_extra, member.extra):
+            cursor = 0
+            while cursor < len(extra):
+                kind, length = struct.unpack_from("<HH", extra, cursor)
+                zip64 |= kind == 1 and length > 0
+                cursor += 4 + length
+        if zip64 and min(version, member.extract_version) < 45:
+            raise ValueError("ZIP64 extraction version is below 4.5")
         if flags & 8:
             crc, packed, size = struct.unpack_from("<III", header, 14)
             if (crc not in (0, member.CRC)
