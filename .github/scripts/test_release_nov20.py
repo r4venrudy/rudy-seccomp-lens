@@ -54,3 +54,13 @@ class ReleaseInteroperability(unittest.TestCase):
         for extra in (struct.pack("<HH", 0x7075, 0), unicode_path(b"wrong", b"safe.txt")):
             with self.assertRaises((ValueError, BadZipFile)):
                 self.verify_zip(self.zip_bytes(extra))
+
+    def test_local_unicode_alias(self):
+        for alias in (b"../escape", b"different", b"\xff"):
+            data = self.zip_bytes(unicode_path(b"safe.txt", alias))
+            central = data.index(b"PK\x01\x02")
+            extra_size = struct.unpack_from("<H", data, central + 30)[0]
+            offset = central + 46 + 8
+            data[offset:offset + extra_size] = b"\x00\x00" + struct.pack("<H", extra_size - 4) + bytes(extra_size - 4)
+            with self.assertRaises((ValueError, BadZipFile)):
+                self.verify_zip(data)
