@@ -93,19 +93,51 @@ def verify_xz_envelope(path, limit):
     return decoded
 
 
+MAX_GZIP_STREAMS = 4096
+
+
+def verify_gzip_envelope(path, limit):
+    # zlib's gzip decoder checks FHCRC as well as the payload CRC and ISIZE.
+    import zlib
+    decoded = 0
+    streams = 0
+    with path.open("rb") as stream:
+        pending = stream.read(65536)
+        while pending:
+            if streams:
+                pending = pending.lstrip(bytes(1))
+                if not pending:
+                    pending = stream.read(65536)
+                    continue
+            streams += 1
+            if streams > MAX_GZIP_STREAMS:
+                raise ValueError("gzip stream count exceeds resource limit")
+            decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            while not decoder.eof:
+                if not pending:
+                    pending = stream.read(65536)
+                    if not pending:
+                        raise EOFError("truncated gzip compression envelope")
+                try:
+                    decoded += len(decoder.decompress(pending, 65536))
+                except zlib.error as error:
+                    raise ValueError("invalid gzip compression envelope") from error
+                pending = decoder.unconsumed_tail
+                if decoded > limit:
+                    raise ValueError("compressed TAR envelope exceeds resource limits")
+            pending = decoder.unused_data or stream.read(65536)
+    if not streams:
+        raise ValueError("empty gzip compression envelope")
+    return decoded
+
+
 def verify_compression_envelope(path):
     # TAR iteration can finish at its end marker without reading the codec footer.
     # Limit all decoded bytes, including headers, padding and trailing data.
     limit = MAX_TOTAL + 128 * 1024 * 1024
     if path.name.endswith(".tar.xz"):
         return verify_xz_envelope(path, limit)
-    decoded = 0
-    with gzip.open(path, "rb") as stream:
-        while chunk := stream.read(65536):
-            decoded += len(chunk)
-            if decoded > limit:
-                raise ValueError("compressed TAR envelope exceeds resource limits")
-    return decoded
+    return verify_gzip_envelope(path, limit)
 
 
 def validate_zip_extra(data, record, filename=None, flags=0):

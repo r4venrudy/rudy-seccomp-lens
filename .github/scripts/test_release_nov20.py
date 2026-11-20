@@ -74,3 +74,17 @@ class ReleaseInteroperability(unittest.TestCase):
             changed[changed.index(b"PK\x01\x02") + 6] = central
             with self.assertRaisesRegex(ValueError, "ZIP64 extraction version"):
                 self.verify_zip(changed)
+
+    def test_gzip_header_crc_and_stream_budget(self):
+        path = self.folder / "fixture.tar.gz"
+        path.write_bytes(self.fhcrc())
+        self.assertEqual(guard.verify_compression_envelope(path), 2048)
+        path.write_bytes(self.fhcrc(False))
+        with self.assertRaisesRegex(ValueError, "gzip compression envelope"):
+            guard.verify_compression_envelope(path)
+        path.write_bytes(self.fhcrc() * 2 + bytes(8))
+        with patch.object(guard, "MAX_GZIP_STREAMS", 2, create=True):
+            self.assertEqual(guard.verify_compression_envelope(path), 4096)
+        with patch.object(guard, "MAX_GZIP_STREAMS", 1, create=True):
+            with self.assertRaisesRegex(ValueError, "gzip stream count"):
+                guard.verify_compression_envelope(path)
