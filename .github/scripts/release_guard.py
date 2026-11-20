@@ -108,7 +108,7 @@ def verify_compression_envelope(path):
     return decoded
 
 
-def validate_zip_extra(data, record):
+def validate_zip_extra(data, record, filename=None, flags=0):
     cursor = 0
     structural = set()
     while cursor < len(data):
@@ -118,6 +118,20 @@ def validate_zip_extra(data, record):
         cursor += 4 + length
         if cursor > len(data):
             raise ValueError(f"truncated {record} ZIP extra field payload")
+        if kind == 0x7075 and filename is not None:
+            import zlib
+            payload = data[cursor - length:cursor]
+            raw = filename.encode("utf-8" if flags & (1 << 11) else "cp437")
+            if len(payload) < 5 or payload[0] != 1:
+                raise ValueError(f"invalid {record} ZIP Unicode path header")
+            if struct.unpack_from("<I", payload, 1)[0] != zlib.crc32(raw):
+                raise ValueError(f"invalid {record} ZIP Unicode path checksum")
+            try:
+                alias = payload[5:].decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise ValueError(f"invalid {record} ZIP Unicode path encoding") from error
+            if alias != filename:
+                raise ValueError(f"{record} ZIP Unicode path changes the audited filename")
         # A record has only one ZIP64 structure and one Unicode path override.
         if kind in (0x0001, 0x7075):
             if kind in structural:
@@ -260,7 +274,7 @@ def verify(path):
                 path_text = name[:-1] if member.is_dir() else name
                 if not name.startswith('/') and any(part in ('', '.') for part in path_text.split('/')):
                     raise ValueError('noncanonical ZIP member path')
-                validate_zip_extra(member.extra, "central")
+                validate_zip_extra(member.extra, "central", member.orig_filename, member.flag_bits)
                 if member.volume != 0:
                     raise ValueError('ZIP member references another disk')
                 validate_zip_metadata(archive, member)
