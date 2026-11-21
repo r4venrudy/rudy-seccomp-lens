@@ -135,7 +135,7 @@ def verify_compression_envelope(path):
     # TAR iteration can finish at its end marker without reading the codec footer.
     # Limit all decoded bytes, including headers, padding and trailing data.
     limit = MAX_TOTAL + 128 * 1024 * 1024
-    if path.name.endswith(".tar.xz"):
+    if path.name.lower().endswith(".tar.xz"):
         return verify_xz_envelope(path, limit)
     return verify_gzip_envelope(path, limit)
 
@@ -300,7 +300,7 @@ def verify(path):
                 actual+=len(chunk)
                 if actual>size:raise ValueError('member exceeds declared size')
         if actual!=size:raise ValueError('member is truncated')
-    if path.name.endswith(('.zip','.jar','.nupkg','.whl')):
+    if path.name.lower().endswith(('.zip','.jar','.nupkg','.whl')):
         with path.open("rb") as package, open_zip(package) as archive:
             if len(archive.infolist())>MAX_ENTRIES:raise ValueError('too many archive records')
             validate_paths([(m.orig_filename,m.is_dir(),stat.S_ISLNK(m.external_attr>>16),(m.external_attr>>16)&0o170000 not in (0,stat.S_IFREG,stat.S_IFDIR,stat.S_IFLNK)) for m in archive.infolist()])
@@ -347,7 +347,7 @@ def verify(path):
                 with archive.open(member) as stream:consume(stream,member.file_size)
                 if member.compress_type == zipfile.ZIP_DEFLATED:
                     validate_deflate(archive, member)
-    elif path.name.endswith(('.tar.gz','.tgz','.tar.xz')):
+    elif path.name.lower().endswith(('.tar.gz','.tgz','.tar.xz')):
         decoded_size = verify_compression_envelope(path)
         with tarfile.open(path, tarinfo=ReleaseTarInfo) as archive:
             records=[]
@@ -400,7 +400,7 @@ def verify(path):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('directory',type=Path);args=parser.parse_args()
-    files=sorted(p for p in args.directory.iterdir() if p.name.endswith(('.zip','.jar','.nupkg','.whl','.tar.gz','.tgz','.tar.xz')))
+    files=sorted(p for p in args.directory.iterdir() if p.name.lower().endswith(('.zip','.jar','.nupkg','.whl','.tar.gz','.tgz','.tar.xz')))
     if not files:raise ValueError('no release archives were found')
     for file in files:verify(file)
     print('Verified release archives:',len(files))
