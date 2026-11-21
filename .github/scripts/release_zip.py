@@ -20,6 +20,15 @@ def validate_zip64_end(stream, classic_offset, footer):
     if (len(extended) != 56 or extended[:4] != b"PK\x06\x06"
             or len(locator) != 20 or locator[:4] != b"PK\x06\x07"):
         raise ValueError("invalid ZIP64 locator framing")
+    stream.seek(classic_offset)
+    classic = stream.read(zipfile.sizeEndCentDir)
+    if len(classic) != zipfile.sizeEndCentDir:
+        raise ValueError("truncated classic and ZIP64 end records")
+    small = struct.unpack("<4s4H2IH", classic)
+    large = struct.unpack("<4sQHHIIQQQQ", extended)
+    for index, sentinel in ((1, 0xffff), (2, 0xffff), (3, 0xffff), (4, 0xffff), (5, 0xffffffff), (6, 0xffffffff)):
+        if small[index] != sentinel and small[index] != large[index + 3]:
+            raise ValueError("classic and ZIP64 end records disagree")
     _, disk, relative, disks = struct.unpack("<4sIQI", locator)
     # ZipFile permits a concatenated prefix. All ZIP-relative offsets must
     # imply the same prefix length rather than ignoring the locator offset.

@@ -78,3 +78,15 @@ class ReleaseFramingRegressions(unittest.TestCase):
             struct.pack_into(format, changed, locator + offset, value)
             with self.assertRaises((ValueError, zipfile.BadZipFile)):
                 self.verify(changed)
+
+    def test_classic_zip64_agreement(self):
+        data = zip64()
+        end = len(data) - 22
+        for offset, format, value in ((4,"<H",1), (6,"<H",1), (8,"<H",2), (10,"<H",2), (12,"<I",1), (16,"<I",0)):
+            changed = bytearray(data)
+            struct.pack_into(format, changed, end + offset, value)
+            with self.assertRaisesRegex(ValueError, "classic and ZIP64"):
+                self.verify(changed)
+        for offset, format, sentinel in ((4,"<H",0xffff), (6,"<H",0xffff), (8,"<H",0xffff), (10,"<H",0xffff), (12,"<I",0xffffffff), (16,"<I",0xffffffff)):
+            struct.pack_into(format, data, end + offset, sentinel)
+        self.assertEqual(self.verify(data), (1, 7))
