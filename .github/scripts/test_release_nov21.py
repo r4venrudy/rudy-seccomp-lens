@@ -109,3 +109,16 @@ class ReleaseFramingRegressions(unittest.TestCase):
                 self.assertEqual(self.verify(compressor(clean), "clean."+suffix), (1, 7))
                 with self.assertRaisesRegex(ValueError, "TAR extension padding"):
                     self.verify(compressor(dirty), "dirty."+suffix)
+
+    def test_vfat_directory_marker(self):
+        self.assertEqual(self.verify(basic_zip(14, 0x20)), (1, 7))
+        self.assertEqual(self.verify(basic_zip(3, 0x10)), (1, 7))
+        with self.assertRaisesRegex(ValueError, "ZIP directory lacks"):
+            self.verify(basic_zip(14, 0x10))
+        stream = BytesIO()
+        with zipfile.ZipFile(stream, "w") as archive:
+            directory = zipfile.ZipInfo("directory/")
+            directory.create_system, directory.external_attr = 14, 0x10
+            archive.writestr(directory, b"")
+            archive.writestr("directory/payload", b"payload")
+        self.assertEqual(self.verify(stream.getvalue()), (2, 7))

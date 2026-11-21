@@ -348,7 +348,7 @@ def verify(path):
                     raise ValueError('privileged ZIP mode in portable release')
                 if member.is_dir() and (member.file_size or kind==stat.S_IFREG):
                     raise ValueError('invalid ZIP directory payload or type')
-                dos_directory = member.create_system == 0 and bool(member.external_attr & 0x10)
+                dos_directory = member.create_system in (0, 14) and bool(member.external_attr & 0x10)
                 if not member.is_dir() and (kind == stat.S_IFDIR or dos_directory):
                     raise ValueError('ZIP directory lacks a trailing slash')
             for member in members:
