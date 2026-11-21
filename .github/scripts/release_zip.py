@@ -26,6 +26,9 @@ def validate_zip64_end(stream, classic_offset, footer):
         raise ValueError("truncated classic and ZIP64 end records")
     small = struct.unpack("<4s4H2IH", classic)
     large = struct.unpack("<4sQHHIIQQQQ", extended)
+    # This reader implements the fixed, unencrypted ZIP64 v1 end record.
+    if large[1] != 44 or large[3] < 45:
+        raise ValueError("ZIP64 end record size or extraction version is unsupported")
     for index, sentinel in ((1, 0xffff), (2, 0xffff), (3, 0xffff), (4, 0xffff), (5, 0xffffffff), (6, 0xffffffff)):
         if small[index] != sentinel and small[index] != large[index + 3]:
             raise ValueError("classic and ZIP64 end records disagree")

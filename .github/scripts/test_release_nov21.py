@@ -90,3 +90,12 @@ class ReleaseFramingRegressions(unittest.TestCase):
         for offset, format, sentinel in ((4,"<H",0xffff), (6,"<H",0xffff), (8,"<H",0xffff), (10,"<H",0xffff), (12,"<I",0xffffffff), (16,"<I",0xffffffff)):
             struct.pack_into(format, data, end + offset, sentinel)
         self.assertEqual(self.verify(data), (1, 7))
+
+    def test_zip64_end_record_profile(self):
+        data = zip64()
+        end64 = len(data) - 22 - 20 - 56
+        for offset, format, value in ((4,"<Q",0), (4,"<Q",43), (4,"<Q",45), (4,"<Q",0xffffffffffffffff), (14,"<H",0), (14,"<H",44)):
+            changed = bytearray(data)
+            struct.pack_into(format, changed, end64 + offset, value)
+            with self.assertRaises((ValueError, zipfile.BadZipFile)):
+                self.verify(changed)
