@@ -66,3 +66,15 @@ class ReleaseFramingRegressions(unittest.TestCase):
         for suffix in ("TAR.GZ", "TGZ", "TaR.Gz"):
             self.assertEqual(self.verify(gzip.compress(raw), "safe."+suffix), (1, 7))
         self.assertEqual(self.verify(lzma.compress(raw), "safe.TAR.XZ"), (1, 7))
+
+    def test_zip64_locator(self):
+        data = zip64()
+        self.assertEqual(self.verify(data), (1, 7))
+        # Preserve the same concatenated-prefix support as the standard reader.
+        self.assertEqual(self.verify(b"prefix" + data), (1, 7))
+        locator = len(data) - 22 - 20
+        for offset, format, value in ((8, "<Q", 0), (8, "<Q", len(data)), (16, "<I", 0)):
+            changed = bytearray(data)
+            struct.pack_into(format, changed, locator + offset, value)
+            with self.assertRaises((ValueError, zipfile.BadZipFile)):
+                self.verify(changed)

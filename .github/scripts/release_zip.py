@@ -7,6 +7,27 @@ MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 MAX_DIRECTORY_ENTRIES = 100_000
 
 
+def validate_zip64_end(stream, classic_offset, footer):
+    """Check ZIP64 framing the standard reader otherwise treats as advisory."""
+    if footer[zipfile._ECD_SIGNATURE] != zipfile.stringEndArchive64:
+        return
+    end_offset = classic_offset - zipfile.sizeEndCentDir64Locator - zipfile.sizeEndCentDir64
+    if end_offset < 0:
+        raise ValueError("invalid ZIP64 locator extent")
+    stream.seek(end_offset)
+    extended = stream.read(zipfile.sizeEndCentDir64)
+    locator = stream.read(zipfile.sizeEndCentDir64Locator)
+    if (len(extended) != 56 or extended[:4] != b"PK\x06\x06"
+            or len(locator) != 20 or locator[:4] != b"PK\x06\x07"):
+        raise ValueError("invalid ZIP64 locator framing")
+    _, disk, relative, disks = struct.unpack("<4sIQI", locator)
+    # ZipFile permits a concatenated prefix. All ZIP-relative offsets must
+    # imply the same prefix length rather than ignoring the locator offset.
+    expected = footer[zipfile._ECD_OFFSET] + footer[zipfile._ECD_SIZE]
+    if disk != 0 or disks != 1 or relative != expected or relative > end_offset:
+        raise ValueError("ZIP64 locator disk count or end-record offset disagrees")
+
+
 def open_zip(stream):
     stream.seek(0, 2)
     size = stream.tell()
@@ -27,6 +48,7 @@ def open_zip(stream):
     if classic < 0 or classic + footer_size + footer[zipfile._ECD_COMMENT_SIZE] != len(tail):
         raise ValueError("ZIP footer extent disagrees with file size")
     classic_offset = tail_offset + classic
+    validate_zip64_end(stream, classic_offset, footer)
     count = footer[zipfile._ECD_ENTRIES_TOTAL]
     if footer[zipfile._ECD_DISK_NUMBER] or footer[zipfile._ECD_DISK_START] or footer[zipfile._ECD_ENTRIES_THIS_DISK] != count:
         raise ValueError("ZIP disk or entry count is inconsistent")
