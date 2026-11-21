@@ -259,6 +259,15 @@ class ReleaseTarInfo(tarfile.TarInfo):
             if self.size < 0 or self.size > MAX_TAR_EXTENSION_BYTES:
                 raise ValueError("TAR extension exceeds the metadata limit")
             padded = (self.size + tarfile.BLOCKSIZE - 1) // tarfile.BLOCKSIZE * tarfile.BLOCKSIZE
+            padding = (-self.size) % tarfile.BLOCKSIZE
+            if padding:
+                position = archive.fileobj.tell()
+                try:
+                    archive.fileobj.seek(position + self.size)
+                    if archive.fileobj.read(padding) != bytes(padding):
+                        raise ValueError("truncated or nonzero TAR extension padding")
+                finally:
+                    archive.fileobj.seek(position)
             total = getattr(archive, "_release_extension_bytes", 0) + tarfile.BLOCKSIZE + padded
             if total > MAX_TAR_EXTENSION_TOTAL:
                 raise ValueError("TAR extension metadata exceeds the aggregate limit")

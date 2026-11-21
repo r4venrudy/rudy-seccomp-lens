@@ -99,3 +99,13 @@ class ReleaseFramingRegressions(unittest.TestCase):
             struct.pack_into(format, changed, end64 + offset, value)
             with self.assertRaises((ValueError, zipfile.BadZipFile)):
                 self.verify(changed)
+
+    def test_tar_extension_padding(self):
+        for kind, payload in ((tarfile.GNUTYPE_LONGNAME, b"payload\0"), (tarfile.XHDTYPE, pax()), (tarfile.XGLTYPE, pax()), (tarfile.SOLARIS_XHDTYPE, pax())):
+            clean = tar_record("extension", payload, kind) + tar_record("payload") + bytes(1024)
+            dirty = bytearray(clean)
+            dirty[512 + len(payload)] = 1
+            for suffix, compressor in (("tar.gz", gzip.compress), ("tar.xz", lzma.compress)):
+                self.assertEqual(self.verify(compressor(clean), "clean."+suffix), (1, 7))
+                with self.assertRaisesRegex(ValueError, "TAR extension padding"):
+                    self.verify(compressor(dirty), "dirty."+suffix)
