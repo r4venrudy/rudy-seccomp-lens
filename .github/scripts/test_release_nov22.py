@@ -39,3 +39,9 @@ class ReleaseWorkBudgets(unittest.TestCase):
                 (self.folder/"SHA256SUMS.txt").write_text(sha256(b"payload").hexdigest()+"  "+name+"\n",encoding="ascii")
                 checksums.verify_checksums(self.folder)
                 path.unlink()
+
+    def test_canonical_caseless_paths(self):
+        for names in (("\u00df\u0301","s\u015b"),("\u00df\u0301/a","s\u015b/b"),("\u00df\u0301","s\u015b/child")):
+            with self.assertRaisesRegex(ValueError,"collid|directory"):
+                self.verify(names)
+        self.assertEqual(self.verify(("\u00df", "st", "\u00e9/a")),(3,21))

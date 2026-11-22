@@ -13,6 +13,9 @@ MAX_ENTRIES=100_000
 def validate_paths(records):
     import posixpath,stat,unicodedata
     from pathlib import PurePosixPath
+    def portable_key(value):
+        # Canonical caseless matching needs normalization after folding too.
+        return unicodedata.normalize('NFC', unicodedata.normalize('NFD', value).casefold())
     paths={}
     spellings={}
     for name,directory,linked,special in records:
@@ -34,12 +37,12 @@ def validate_paths(records):
         devices={'con','prn','aux','nul','conin$','conout$'}|{'com'+str(i) for i in range(1,10)}|{'lpt'+str(i) for i in range(1,10)}
         devices |= {prefix+digit for prefix in ('com','lpt') for digit in '\u00b9\u00b2\u00b3'}
         if any(p.endswith(('.', ' ')) or p.split('.')[0].casefold() in devices for p in parts):raise ValueError('nonportable Windows member name')
-        key=unicodedata.normalize('NFC',normalized).casefold()
+        key=portable_key(normalized)
         if key in paths:raise ValueError('duplicate or case/normalization-colliding release member')
         paths[key]=directory
         for i in range(1,len(parts)+1):
             spelling='/'.join(parts[:i])
-            canonical=unicodedata.normalize('NFC',spelling).casefold()
+            canonical=portable_key(spelling)
             previous=spellings.setdefault(canonical,spelling)
             if previous!=spelling:raise ValueError('colliding release path prefix spellings')
     for key in paths:
