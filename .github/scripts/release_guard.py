@@ -9,6 +9,7 @@ MAX_ARCHIVE=512*1024*1024
 MAX_MEMBER=512*1024*1024
 MAX_TOTAL=2*1024*1024*1024
 MAX_ENTRIES=100_000
+MAX_STAGE_ENTRIES=8192
 
 def validate_paths(records):
     import posixpath,stat,unicodedata
@@ -412,7 +413,15 @@ def verify(path):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('directory',type=Path);args=parser.parse_args()
-    files=sorted(p for p in args.directory.iterdir() if p.name.lower().endswith(('.zip','.jar','.nupkg','.whl','.tar.gz','.tgz','.tar.xz')))
+    import os
+    files=[]
+    with os.scandir(args.directory) as entries:
+        for count,entry in enumerate(entries,1):
+            if count>MAX_STAGE_ENTRIES:
+                raise ValueError('release staging directory has too many entries')
+            if entry.name.lower().endswith(('.zip','.jar','.nupkg','.whl','.tar.gz','.tgz','.tar.xz')):
+                files.append(Path(entry.path))
+    files.sort()
     if not files:raise ValueError('no release archives were found')
     for file in files:verify(file)
     print('Verified release archives:',len(files))

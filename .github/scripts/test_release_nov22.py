@@ -45,3 +45,15 @@ class ReleaseWorkBudgets(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"collid|directory"):
                 self.verify(names)
         self.assertEqual(self.verify(("\u00df", "st", "\u00e9/a")),(3,21))
+
+    def test_staging_entry_budget(self):
+        (self.folder/"fixture.zip").write_bytes(package())
+        (self.folder/"notes.txt").write_text("notes")
+        with patch.object(guard,"MAX_STAGE_ENTRIES",2,create=True): self.main()
+        with patch.object(guard,"MAX_STAGE_ENTRIES",1,create=True):
+            with self.assertRaisesRegex(ValueError,"staging directory"):
+                self.main()
+        # Reject the excess entry before reading archive payloads.
+        with patch.object(guard,"MAX_STAGE_ENTRIES",1,create=True):
+            with patch.object(guard,"verify",side_effect=AssertionError("payload opened before directory preflight")):
+                with self.assertRaisesRegex(ValueError,"staging directory"): self.main()
