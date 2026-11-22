@@ -10,6 +10,7 @@ MAX_MEMBER=512*1024*1024
 MAX_TOTAL=2*1024*1024*1024
 MAX_ENTRIES=100_000
 MAX_STAGE_ENTRIES=8192
+MAX_PATH_METADATA=32*1024*1024
 
 def validate_paths(records):
     import posixpath,stat,unicodedata
@@ -19,6 +20,7 @@ def validate_paths(records):
         return unicodedata.normalize('NFC', unicodedata.normalize('NFD', value).casefold())
     paths={}
     spellings={}
+    metadata_work=0
     for name,directory,linked,special in records:
         if linked or special:raise ValueError('link or special file in portable release')
         if name in ('.','./') and directory:continue
@@ -44,6 +46,12 @@ def validate_paths(records):
         for i in range(1,len(parts)+1):
             spelling='/'.join(parts[:i])
             canonical=portable_key(spelling)
+            if canonical not in spellings:
+                # Charge both strings plus fixed per-prefix bookkeeping work.
+                # This bounds the prefix index, not exact allocator RSS.
+                metadata_work += len(canonical.encode('utf-8')) + len(spelling.encode('utf-8')) + 64
+                if metadata_work > MAX_PATH_METADATA:
+                    raise ValueError('release path metadata exceeds work budget')
             previous=spellings.setdefault(canonical,spelling)
             if previous!=spelling:raise ValueError('colliding release path prefix spellings')
     for key in paths:

@@ -57,3 +57,16 @@ class ReleaseWorkBudgets(unittest.TestCase):
         with patch.object(guard,"MAX_STAGE_ENTRIES",1,create=True):
             with patch.object(guard,"verify",side_effect=AssertionError("payload opened before directory preflight")):
                 with self.assertRaisesRegex(ValueError,"staging directory"): self.main()
+
+    def test_path_metadata_budget(self):
+        # a costs 66 units; a/b costs another 70. Shared prefixes are charged once.
+        records=[("a/b",False,False,False),("a/c",False,False,False)]
+        with patch.object(guard,"MAX_PATH_METADATA",206,create=True): guard.validate_paths(records)
+        with patch.object(guard,"MAX_PATH_METADATA",205,create=True):
+            with self.assertRaisesRegex(ValueError,"path metadata"):
+                guard.validate_paths(records)
+        path=self.folder/"fixture.zip"
+        path.write_bytes(package(("a/b",)))
+        with patch.object(guard,"MAX_PATH_METADATA",65,create=True):
+            with patch.object(zipfile.ZipFile,"open",side_effect=AssertionError("payload opened before path preflight")):
+                with self.assertRaisesRegex(ValueError,"path metadata"): guard.verify(path)
