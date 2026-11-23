@@ -82,6 +82,8 @@ def open_zip(stream):
         header = stream.read(46)
         if len(header) != 46 or header[:4] != b"PK\x01\x02":
             raise zipfile.BadZipFile("invalid ZIP directory header")
+        if struct.unpack_from("<H", header, 28)[0] == 0:
+            raise ValueError("empty ZIP member name")
         variable_size = sum(struct.unpack_from("<HHH", header, 28))
         if 46 + variable_size > remaining:
             raise zipfile.BadZipFile("ZIP directory entry extends beyond directory")
