@@ -356,13 +356,13 @@ def verify(path):
                     raise ValueError('unsupported ZIP general-purpose flags')
                 unix_mode = member.external_attr >> 16 if member.create_system in (3, 19) else 0
                 kind = stat.S_IFMT(unix_mode)
-                if member.create_system in (0, 14) and member.external_attr & 0x08:
+                if member.create_system in (0, 10, 14) and member.external_attr & 0x08:
                     raise ValueError('ZIP volume label is outside the release profile')
                 if unix_mode & (stat.S_ISUID | stat.S_ISGID):
                     raise ValueError('privileged ZIP mode in portable release')
                 if member.is_dir() and (member.file_size or kind==stat.S_IFREG):
                     raise ValueError('invalid ZIP directory payload or type')
-                dos_directory = member.create_system in (0, 14) and bool(member.external_attr & 0x10)
+                dos_directory = member.create_system in (0, 10, 14) and bool(member.external_attr & 0x10)
                 if not member.is_dir() and (kind == stat.S_IFDIR or dos_directory):
                     raise ValueError('ZIP directory lacks a trailing slash')
             for member in members:

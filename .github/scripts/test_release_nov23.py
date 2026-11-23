@@ -41,3 +41,17 @@ class ReleaseEmptyRecords(unittest.TestCase):
                 with patch.object(zipfile.ZipFile,"open",side_effect=AssertionError("payload opened before empty CRC preflight")):
                     with self.assertRaisesRegex(ValueError,"empty ZIP member CRC"):
                         self.verify(data)
+
+    def test_ntfs_attributes(self):
+        for attributes in (0x10,0x08):
+            output=BytesIO()
+            with zipfile.ZipFile(output,"w") as archive:
+                info=zipfile.ZipInfo("payload");info.create_system=10;info.external_attr=attributes
+                archive.writestr(info,b"payload")
+            with self.assertRaisesRegex(ValueError,"ZIP directory|ZIP volume"):
+                self.verify(output.getvalue())
+        output=BytesIO()
+        with zipfile.ZipFile(output,"w") as archive:
+            info=zipfile.ZipInfo("directory/");info.create_system=10;info.external_attr=0x10
+            archive.writestr(info,b"");archive.writestr("directory/payload",b"payload")
+        self.assertEqual(self.verify(output.getvalue()),(2,7))
