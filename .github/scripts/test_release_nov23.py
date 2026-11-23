@@ -26,3 +26,18 @@ class ReleaseEmptyRecords(unittest.TestCase):
                 self.verify(nameless_zip())
         with self.assertRaisesRegex(ValueError,"empty ZIP member name"):
             self.verify(nameless_zip())
+
+    def test_empty_crc(self):
+        for name in ("empty","directory/"):
+            for compression in (zipfile.ZIP_STORED,zipfile.ZIP_DEFLATED):
+                output=BytesIO()
+                with zipfile.ZipFile(output,"w",compression=compression) as archive:
+                    archive.writestr(name,b"");archive.writestr("payload",b"payload")
+                data=bytearray(output.getvalue())
+                self.assertEqual(self.verify(data),(2,7))
+                struct.pack_into("<I",data,14,123)
+                central=data.index(b"PK\x01\x02")
+                struct.pack_into("<I",data,central+16,123)
+                with patch.object(zipfile.ZipFile,"open",side_effect=AssertionError("payload opened before empty CRC preflight")):
+                    with self.assertRaisesRegex(ValueError,"empty ZIP member CRC"):
+                        self.verify(data)
