@@ -14,3 +14,5 @@ Use `--json` for schema `rudy.release.archive-report/v1`. Reports contain basena
 `--max-archive-bytes N` lowers `MAX_ARCHIVE` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.
 
 `--max-total-bytes N` lowers `MAX_TOTAL` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.
+
+`--max-member-bytes N` lowers `MAX_MEMBER` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.

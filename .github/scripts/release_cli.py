@@ -49,11 +49,13 @@ def archive_main(namespace):
     parser.add_argument("--json",action="store_true",help="emit a complete deterministic JSON audit report")
     parser.add_argument("--max-archive-bytes",type=positive_limit(namespace["MAX_ARCHIVE"]),help="lower the built-in MAX_ARCHIVE limit")
     parser.add_argument("--max-total-bytes",type=positive_limit(namespace["MAX_TOTAL"]),help="lower the built-in MAX_TOTAL limit")
+    parser.add_argument("--max-member-bytes",type=positive_limit(namespace["MAX_MEMBER"]),help="lower the built-in MAX_MEMBER limit")
     args=parser.parse_args()
     files=candidates(args.input,namespace.get("MAX_STAGE_ENTRIES",8192))
     overrides={}
     if args.max_archive_bytes is not None: overrides["MAX_ARCHIVE"]=args.max_archive_bytes
     if args.max_total_bytes is not None: overrides["MAX_TOTAL"]=args.max_total_bytes
+    if args.max_member_bytes is not None: overrides["MAX_MEMBER"]=args.max_member_bytes
     results=[]
     with scoped_limits(namespace,overrides):
         for file in files:
