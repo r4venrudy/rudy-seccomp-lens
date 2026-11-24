@@ -45,3 +45,11 @@ class ReleaseCommandTests(unittest.TestCase):
         for value in (0,-1,original+1):
             with self.assertRaises(SystemExit): self.command(self.archive,"--max-archive-bytes",value)
         self.assertEqual(guard.MAX_ARCHIVE,original)
+
+    def test_total_byte_limit(self):
+        original=guard.MAX_TOTAL
+        self.command(self.archive,"--max-total-bytes",14)
+        with self.assertRaises(ValueError): self.command(self.archive,"--max-total-bytes",13)
+        for value in (0,-1,original+1):
+            with self.assertRaises(SystemExit): self.command(self.archive,"--max-total-bytes",value)
+        self.assertEqual(guard.MAX_TOTAL,original)
