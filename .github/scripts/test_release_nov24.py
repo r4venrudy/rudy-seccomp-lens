@@ -37,3 +37,11 @@ class ReleaseCommandTests(unittest.TestCase):
             with redirect_stdout(out):
                 with self.assertRaises((ValueError,zipfile.BadZipFile)): guard.main()
         self.assertEqual(out.getvalue(),"")
+
+    def test_archive_byte_limit(self):
+        original=guard.MAX_ARCHIVE
+        self.command(self.archive,"--max-archive-bytes",self.archive.stat().st_size)
+        with self.assertRaises(ValueError): self.command(self.archive,"--max-archive-bytes",1)
+        for value in (0,-1,original+1):
+            with self.assertRaises(SystemExit): self.command(self.archive,"--max-archive-bytes",value)
+        self.assertEqual(guard.MAX_ARCHIVE,original)
