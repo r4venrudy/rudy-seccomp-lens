@@ -16,3 +16,11 @@ Use `--json` for schema `rudy.release.archive-report/v1`. Reports contain basena
 `--max-total-bytes N` lowers `MAX_TOTAL` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.
 
 `--max-member-bytes N` lowers `MAX_MEMBER` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.
+
+`--max-entries N` lowers `MAX_ENTRIES` for this invocation. Values must be positive and cannot exceed the built-in ceiling. The original limit is restored after success or error.
+
+Byte limits apply per archive: `--max-member-bytes` caps a member and `--max-total-bytes` caps its decompressed sum. Limits do not promise an exact process-memory bound.
+
+```sh
+python .github/scripts/release_guard.py dist --json --max-archive-bytes 67108864 --max-total-bytes 268435456 --max-member-bytes 33554432 --max-entries 10000
+```

@@ -61,3 +61,13 @@ class ReleaseCommandTests(unittest.TestCase):
         for value in (0,-1,original+1):
             with self.assertRaises(SystemExit): self.command(self.archive,"--max-member-bytes",value)
         self.assertEqual(guard.MAX_MEMBER,original)
+
+    def test_entry_limit(self):
+        original=guard.MAX_ENTRIES
+        self.command(self.archive,"--max-entries",2)
+        with self.assertRaises(ValueError): self.command(self.archive,"--max-entries",1)
+        for value in (0,-1,original+1):
+            with self.assertRaises(SystemExit): self.command(self.archive,"--max-entries",value)
+        self.assertEqual(guard.MAX_ENTRIES,original)
+        report=json.loads(self.command(self.archive,"--json","--max-archive-bytes",self.archive.stat().st_size,"--max-total-bytes",14,"--max-member-bytes",7,"--max-entries",2))
+        self.assertEqual(report["entries"],2)
