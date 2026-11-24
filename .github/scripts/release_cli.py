@@ -1,6 +1,7 @@
 """Command interface for portable release-archive verification."""
 import argparse
 import os
+import json
 from pathlib import Path
 
 SUFFIXES=(".zip",".jar",".nupkg",".whl",".tar.gz",".tgz",".tar.xz")
@@ -24,10 +25,16 @@ def candidates(path,limit):
 def archive_main(namespace):
     parser=argparse.ArgumentParser(description=namespace.get("__doc__"))
     parser.add_argument("input",type=Path,help="one release archive or a staging directory")
+    parser.add_argument("--json",action="store_true",help="emit a complete deterministic JSON audit report")
     args=parser.parse_args()
     files=candidates(args.input,namespace.get("MAX_STAGE_ENTRIES",8192))
     results=[]
     for file in files:
         count,total=namespace["verify"](file)
         results.append(dict(name=file.name,entries=count,uncompressed_bytes=total))
-    print("Verified release archives:",len(results))
+    if args.json:
+        report=dict(schema="rudy.release.archive-report/v1",archive_count=len(results),archives=results,
+                    entries=sum(row["entries"] for row in results),uncompressed_bytes=sum(row["uncompressed_bytes"] for row in results))
+        print(json.dumps(report,sort_keys=True))
+    else:
+        print("Verified release archives:",len(results))

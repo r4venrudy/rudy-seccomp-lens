@@ -24,3 +24,16 @@ class ReleaseCommandTests(unittest.TestCase):
     def test_single_archive(self):
         self.assertEqual(self.command(self.archive),"Verified release archives: 1\n")
         self.assertEqual(self.command(self.folder),"Verified release archives: 1\n")
+
+    def test_json_report(self):
+        report=json.loads(self.command(self.archive,"--json"))
+        self.assertEqual(report["schema"],"rudy.release.archive-report/v1")
+        self.assertEqual((report["archive_count"],report["entries"],report["uncompressed_bytes"]),(1,2,14))
+        self.assertEqual(report["archives"],[dict(name="fixture.zip",entries=2,uncompressed_bytes=14)])
+        self.assertEqual(self.command(self.folder,"--json"),self.command(self.archive,"--json"))
+        invalid=self.folder/"later.zip";invalid.write_bytes(b"not an archive")
+        out=StringIO()
+        with patch.object(sys,"argv",["release_guard.py",str(self.folder),"--json"]):
+            with redirect_stdout(out):
+                with self.assertRaises((ValueError,zipfile.BadZipFile)): guard.main()
+        self.assertEqual(out.getvalue(),"")
