@@ -422,17 +422,6 @@ def verify(path):
     return count,total
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('directory',type=Path);args=parser.parse_args()
-    import os
-    files=[]
-    with os.scandir(args.directory) as entries:
-        for count,entry in enumerate(entries,1):
-            if count>MAX_STAGE_ENTRIES:
-                raise ValueError('release staging directory has too many entries')
-            if entry.name.lower().endswith(('.zip','.jar','.nupkg','.whl','.tar.gz','.tgz','.tar.xz')):
-                files.append(Path(entry.path))
-    files.sort()
-    if not files:raise ValueError('no release archives were found')
-    for file in files:verify(file)
-    print('Verified release archives:',len(files))
+    from release_cli import archive_main
+    archive_main(globals())
 if __name__=='__main__':main()
