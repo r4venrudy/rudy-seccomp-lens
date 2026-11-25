@@ -134,14 +134,9 @@ def verify_checksums(directory: Path) -> None:
         raise ValueError("SHA-256 manifest changed while hashing")
 
 
-if __name__ == "__main__":
-    import argparse
+def main():
+    from checksum_cli import checksum_main
+    checksum_main(globals())
 
-    parser = argparse.ArgumentParser(description="Check release archive SHA-256 entries")
-    parser.add_argument("directory", type=Path)
-    args = parser.parse_args()
-    try:
-        verify_checksums(args.directory)
-    except (OSError, ValueError) as error:
-        parser.exit(1, f"{error}\n")
-    print("Verified release SHA-256 manifest")
+if __name__ == "__main__":
+    main()

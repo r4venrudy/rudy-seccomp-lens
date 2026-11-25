@@ -24,3 +24,7 @@ Byte limits apply per archive: `--max-member-bytes` caps a member and `--max-tot
 ```sh
 python .github/scripts/release_guard.py dist --json --max-archive-bytes 67108864 --max-total-bytes 268435456 --max-member-bytes 33554432 --max-entries 10000
 ```
+
+## Checksum receipts
+
+`release_checksums.py` accepts the staging directory or its canonical regular `SHA256SUMS` / `SHA256SUMS.txt` path. The full staging inventory is still verified; choosing a manifest never permits unlisted archives or a second manifest.
