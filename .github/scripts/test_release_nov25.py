@@ -72,3 +72,34 @@ class ChecksumCommandTests(unittest.TestCase):
         missing=self.folder/'invalid-report.json'
         with self.assertRaises(SystemExit):self.command(self.folder,'--output',missing)
         self.assertFalse(missing.exists())
+
+    def test_pinned_manifest(self):
+        digest=hashlib.sha256(self.manifest.read_bytes()).hexdigest()
+        self.command(self.manifest,'--manifest-sha256',digest.upper(),'--verify-archives')
+        for value in ('f'*64,'bad','a'*63):
+            with self.assertRaises(SystemExit):self.command(self.manifest,'--manifest-sha256',value)
+        real_open=Path.open
+        def guarded(path,*args,**kwargs):
+            if path==self.archive:raise AssertionError('read archive before authenticating manifest')
+            return real_open(path,*args,**kwargs)
+        with patch.object(Path,'open',guarded):
+            with self.assertRaises(ValueError):checksums.verify_checksums(self.folder,'f'*64)
+        output=self.folder/'pinned.json'
+        self.command(self.folder,'--output',output,'--manifest-sha256',digest)
+        self.assertEqual(json.loads(output.read_text())['manifest_sha256'],digest)
+
+    def test_output_close_failure_removes_partial_receipt(self):
+        output=self.folder/'broken.json';real_open=Path.open
+        class FailingClose:
+            def __init__(self,stream):self.stream=stream
+            def __enter__(self):return self
+            def __getattr__(self,name):return getattr(self.stream,name)
+            def __exit__(self,*args):
+                self.stream.close()
+                raise OSError('fixture output close failure')
+        def patched(path,*args,**kwargs):
+            stream=real_open(path,*args,**kwargs)
+            return FailingClose(stream) if path==output else stream
+        with patch.object(Path,'open',patched):
+            with self.assertRaises(SystemExit):self.command(self.folder,'--output',output)
+        self.assertFalse(output.exists())

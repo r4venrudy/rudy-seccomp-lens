@@ -41,7 +41,9 @@ def same_snapshot(expected, actual) -> bool:
             and expected.st_mtime_ns == actual.st_mtime_ns)
 
 
-def verify_checksums(directory: Path) -> dict:
+def verify_checksums(directory: Path, expected_manifest_sha256: str | None = None) -> dict:
+    if expected_manifest_sha256 is not None and re.fullmatch(r"[0-9a-fA-F]{64}",expected_manifest_sha256) is None:
+        raise ValueError("expected manifest digest must contain 64 hexadecimal characters")
     staged, manifest_names = staged_inventory(directory)
     if len(manifest_names) != 1:
         raise ValueError("expected exactly one regular SHA-256 manifest")
@@ -56,6 +58,8 @@ def verify_checksums(directory: Path) -> dict:
         contents = stream.read(MAX_MANIFEST + 1)
     if not contents or len(contents) > MAX_MANIFEST:
         raise ValueError("SHA-256 manifest is empty or oversized")
+    if expected_manifest_sha256 is not None and hashlib.sha256(contents).hexdigest()!=expected_manifest_sha256.lower():
+        raise ValueError("SHA-256 manifest does not match the trusted digest")
 
     seen = set()
     listed = set()

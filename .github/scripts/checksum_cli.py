@@ -21,6 +21,7 @@ def checksum_main(namespace):
     parser.add_argument("--max-total-bytes",type=positive_limit(namespace["MAX_CHECKSUM_TOTAL"]),help="lower the aggregate hashing byte limit")
     parser.add_argument("--verify-archives",action="store_true",help="also validate archive framing, payloads and portable paths")
     parser.add_argument("--output",type=Path,help="save a JSON receipt to a new file")
+    parser.add_argument("--manifest-sha256",help="trusted SHA-256 of the exact manifest bytes")
     args=parser.parse_args()
     limits={}
     if args.max_asset_bytes is not None:limits["MAX_ASSET"]=args.max_asset_bytes
@@ -28,7 +29,7 @@ def checksum_main(namespace):
     try:
         directory=checksum_directory(args.input,namespace["MANIFEST_NAMES"])
         with scoped_limits(namespace,limits):
-            report=namespace["verify_checksums"](directory)
+            report=namespace["verify_checksums"](directory,args.manifest_sha256)
         if args.verify_archives:
             from release_guard import verify
             for row in report["archives"]:
@@ -37,15 +38,20 @@ def checksum_main(namespace):
             report["archive_validation"]=True
         if args.output is not None:
             payload=json.dumps(report,sort_keys=True)+"\n"
-            with args.output.open("x",encoding="utf-8",newline="\n") as output:
-                identity=os.fstat(output.fileno())
-                try:
+            identity=None
+            try:
+                with args.output.open("x",encoding="utf-8",newline="\n") as output:
+                    identity=os.fstat(output.fileno())
                     output.write(payload)
                     output.flush()
-                except BaseException:
-                    # Remove only the output inode we created, never a replacement.
-                    if os.path.samestat(identity,args.output.lstat()):args.output.unlink()
-                    raise
+            except BaseException:
+                # The handle is closed before cleanup, including on Windows.
+                if identity is not None:
+                    try:
+                        if os.path.samestat(identity,args.output.lstat()):args.output.unlink()
+                    except OSError:
+                        pass  # Preserve the original write/close error.
+                raise
             return
     except (OSError,ValueError,zipfile.BadZipFile,tarfile.TarError,EOFError) as error:
         parser.exit(1,f"{error}\n")

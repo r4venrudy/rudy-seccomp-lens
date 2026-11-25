@@ -36,3 +36,10 @@ python .github/scripts/release_guard.py dist --json --max-archive-bytes 67108864
 `--verify-archives` runs the existing content/framing/path validator after checksum verification. JSON rows then include entry counts and decompressed sizes. This checks both contracts sequentially; hold staging files immutable during the command.
 
 `--output PATH` saves the JSON receipt after validation, creates a new UTF-8 file exclusively and preserves any existing file. Nothing is printed on success. Choose a path outside the staging directory when you want the directory inventory to remain unchanged. Failed validation creates no report. Output I/O errors fail the command.
+
+`--manifest-sha256 HEX` pins the digest of the exact bytes parsed as the manifest, before any release payload is read. Obtain that digest through an independently trusted channel; an untrusted manifest plus untrusted digest establishes no authenticity. The reported manifest digest includes its original line endings.
+
+```sh
+python .github/scripts/release_checksums.py dist/SHA256SUMS.txt --json --verify-archives
+python .github/scripts/release_checksums.py dist --output audit.json --max-total-bytes 268435456
+```
