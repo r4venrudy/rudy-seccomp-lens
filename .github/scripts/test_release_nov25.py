@@ -26,3 +26,18 @@ class ChecksumCommandTests(unittest.TestCase):
         with self.assertRaises(SystemExit):self.command(self.archive)
         other=self.folder/'SHA256SUMS';other.write_bytes(self.manifest.read_bytes())
         with self.assertRaises(SystemExit):self.command(self.manifest)
+
+    def test_json_checksum_receipt(self):
+        report=json.loads(self.command(self.manifest,'--json'))
+        self.assertEqual(report['schema'],'rudy.release.checksum-report/v1')
+        self.assertEqual(report['archive_count'],1)
+        self.assertEqual(report['total_bytes'],self.archive.stat().st_size)
+        self.assertEqual(report['manifest'],self.manifest.name)
+        self.assertEqual(report['manifest_sha256'],hashlib.sha256(self.manifest.read_bytes()).hexdigest())
+        self.assertEqual(report['archives'],[dict(name='fixture.zip',bytes=self.archive.stat().st_size,sha256=hashlib.sha256(self.archive.read_bytes()).hexdigest())])
+        self.assertEqual(self.command(self.folder,'--json'),self.command(self.manifest,'--json'))
+        self.archive.write_bytes(b'invalid')
+        out=StringIO()
+        with patch.object(sys,'argv',['release_checksums.py',str(self.folder),'--json']),redirect_stdout(out),redirect_stderr(StringIO()):
+            with self.assertRaises(SystemExit):checksums.main()
+        self.assertEqual(out.getvalue(),'')
