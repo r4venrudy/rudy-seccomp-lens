@@ -60,3 +60,15 @@ class ChecksumCommandTests(unittest.TestCase):
         self.archive.write_bytes(b'not a zip');self.refresh()
         self.command(self.folder)
         with self.assertRaises(SystemExit):self.command(self.folder,'--verify-archives')
+
+    def test_saved_receipt(self):
+        output=self.folder/'audit.json'
+        self.assertEqual(self.command(self.folder,'--output',output),'')
+        self.assertEqual(json.loads(output.read_text()),json.loads(self.command(self.folder,'--json')))
+        saved=output.read_bytes()
+        with self.assertRaises(SystemExit):self.command(self.folder,'--output',output)
+        self.assertEqual(output.read_bytes(),saved)
+        self.archive.write_bytes(b'changed')
+        missing=self.folder/'invalid-report.json'
+        with self.assertRaises(SystemExit):self.command(self.folder,'--output',missing)
+        self.assertFalse(missing.exists())

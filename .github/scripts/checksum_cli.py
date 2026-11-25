@@ -2,6 +2,7 @@
 import argparse
 import zipfile,tarfile
 import json
+import os
 from pathlib import Path
 from release_cli import positive_limit,scoped_limits
 
@@ -19,6 +20,7 @@ def checksum_main(namespace):
     parser.add_argument("--max-asset-bytes",type=positive_limit(namespace["MAX_ASSET"]),help="lower the per-archive hashing byte limit")
     parser.add_argument("--max-total-bytes",type=positive_limit(namespace["MAX_CHECKSUM_TOTAL"]),help="lower the aggregate hashing byte limit")
     parser.add_argument("--verify-archives",action="store_true",help="also validate archive framing, payloads and portable paths")
+    parser.add_argument("--output",type=Path,help="save a JSON receipt to a new file")
     args=parser.parse_args()
     limits={}
     if args.max_asset_bytes is not None:limits["MAX_ASSET"]=args.max_asset_bytes
@@ -33,6 +35,18 @@ def checksum_main(namespace):
                 count,total=verify(directory/row["name"])
                 row.update(entries=count,uncompressed_bytes=total)
             report["archive_validation"]=True
+        if args.output is not None:
+            payload=json.dumps(report,sort_keys=True)+"\n"
+            with args.output.open("x",encoding="utf-8",newline="\n") as output:
+                identity=os.fstat(output.fileno())
+                try:
+                    output.write(payload)
+                    output.flush()
+                except BaseException:
+                    # Remove only the output inode we created, never a replacement.
+                    if os.path.samestat(identity,args.output.lstat()):args.output.unlink()
+                    raise
+            return
     except (OSError,ValueError,zipfile.BadZipFile,tarfile.TarError,EOFError) as error:
         parser.exit(1,f"{error}\n")
     if args.json:print(json.dumps(report,sort_keys=True))
