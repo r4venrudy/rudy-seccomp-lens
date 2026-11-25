@@ -52,3 +52,11 @@ class ChecksumCommandTests(unittest.TestCase):
             self.assertEqual((checksums.MAX_ASSET,checksums.MAX_CHECKSUM_TOTAL),original)
         with patch.object(Path,'open',side_effect=AssertionError('opened an oversized asset')):
             with self.assertRaises(SystemExit):self.command(self.folder,'--max-asset-bytes',0)
+
+    def test_combined_archive_audit(self):
+        report=json.loads(self.command(self.folder,'--json','--verify-archives'))
+        self.assertTrue(report['archive_validation'])
+        self.assertEqual((report['archives'][0]['entries'],report['archives'][0]['uncompressed_bytes']),(1,7))
+        self.archive.write_bytes(b'not a zip');self.refresh()
+        self.command(self.folder)
+        with self.assertRaises(SystemExit):self.command(self.folder,'--verify-archives')

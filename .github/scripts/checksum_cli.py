@@ -1,5 +1,6 @@
 """Command interface for bounded SHA-256 release verification."""
 import argparse
+import zipfile,tarfile
 import json
 from pathlib import Path
 from release_cli import positive_limit,scoped_limits
@@ -17,6 +18,7 @@ def checksum_main(namespace):
     parser.add_argument("--json",action="store_true",help="emit a complete deterministic checksum receipt")
     parser.add_argument("--max-asset-bytes",type=positive_limit(namespace["MAX_ASSET"]),help="lower the per-archive hashing byte limit")
     parser.add_argument("--max-total-bytes",type=positive_limit(namespace["MAX_CHECKSUM_TOTAL"]),help="lower the aggregate hashing byte limit")
+    parser.add_argument("--verify-archives",action="store_true",help="also validate archive framing, payloads and portable paths")
     args=parser.parse_args()
     limits={}
     if args.max_asset_bytes is not None:limits["MAX_ASSET"]=args.max_asset_bytes
@@ -25,7 +27,13 @@ def checksum_main(namespace):
         directory=checksum_directory(args.input,namespace["MANIFEST_NAMES"])
         with scoped_limits(namespace,limits):
             report=namespace["verify_checksums"](directory)
-    except (OSError,ValueError) as error:
+        if args.verify_archives:
+            from release_guard import verify
+            for row in report["archives"]:
+                count,total=verify(directory/row["name"])
+                row.update(entries=count,uncompressed_bytes=total)
+            report["archive_validation"]=True
+    except (OSError,ValueError,zipfile.BadZipFile,tarfile.TarError,EOFError) as error:
         parser.exit(1,f"{error}\n")
     if args.json:print(json.dumps(report,sort_keys=True))
     else:print("Verified release SHA-256 manifest")

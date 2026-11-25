@@ -32,3 +32,5 @@ python .github/scripts/release_guard.py dist --json --max-archive-bytes 67108864
 `--json` emits `rudy.release.checksum-report/v1`: manifest digest, sorted archive names, byte sizes and verified SHA-256 values. It emits a receipt only after the complete inventory passes.
 
 `--max-asset-bytes N` and `--max-total-bytes N` lower the per-archive and aggregate hashing ceilings. Positive values cannot exceed built-in caps, apply only to this invocation, and are restored after success or failure.
+
+`--verify-archives` runs the existing content/framing/path validator after checksum verification. JSON rows then include entry counts and decompressed sizes. This checks both contracts sequentially; hold staging files immutable during the command.
