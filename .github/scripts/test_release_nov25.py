@@ -41,3 +41,14 @@ class ChecksumCommandTests(unittest.TestCase):
         with patch.object(sys,'argv',['release_checksums.py',str(self.folder),'--json']),redirect_stdout(out),redirect_stderr(StringIO()):
             with self.assertRaises(SystemExit):checksums.main()
         self.assertEqual(out.getvalue(),'')
+
+    def test_checksum_budgets(self):
+        size=self.archive.stat().st_size
+        original=(checksums.MAX_ASSET,checksums.MAX_CHECKSUM_TOTAL)
+        self.command(self.folder,'--max-asset-bytes',size,'--max-total-bytes',size)
+        for flag,hard in (('--max-asset-bytes',original[0]),('--max-total-bytes',original[1])):
+            for value in (0,-1,hard+1,size-1):
+                with self.assertRaises(SystemExit):self.command(self.folder,flag,value)
+            self.assertEqual((checksums.MAX_ASSET,checksums.MAX_CHECKSUM_TOTAL),original)
+        with patch.object(Path,'open',side_effect=AssertionError('opened an oversized asset')):
+            with self.assertRaises(SystemExit):self.command(self.folder,'--max-asset-bytes',0)

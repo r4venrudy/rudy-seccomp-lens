@@ -30,3 +30,5 @@ python .github/scripts/release_guard.py dist --json --max-archive-bytes 67108864
 `release_checksums.py` accepts the staging directory or its canonical regular `SHA256SUMS` / `SHA256SUMS.txt` path. The full staging inventory is still verified; choosing a manifest never permits unlisted archives or a second manifest.
 
 `--json` emits `rudy.release.checksum-report/v1`: manifest digest, sorted archive names, byte sizes and verified SHA-256 values. It emits a receipt only after the complete inventory passes.
+
+`--max-asset-bytes N` and `--max-total-bytes N` lower the per-archive and aggregate hashing ceilings. Positive values cannot exceed built-in caps, apply only to this invocation, and are restored after success or failure.
